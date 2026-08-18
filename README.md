@@ -17,7 +17,7 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
 
-DepDetect adds version status markers directly to supported dependency files. Hover over a dependency to browse published versions, open its registry page, or replace the current version with one click. You can also update every detected dependency in the active file from the Command Palette.
+DepDetect adds version status markers directly to supported dependency files. Hover over a dependency to browse published versions, open its registry page, or replace the current version with one click.
 
 ![DepDetect showing dependency versions in VS Code](./screenshots/preview.gif)
 
@@ -26,7 +26,6 @@ DepDetect adds version status markers directly to supported dependency files. Ho
 - See dependency status inline while you work.
 - Browse stable published versions from the editor hover.
 - Click any version in the hover to apply it immediately.
-- Update all detected dependencies in the active file with one command.
 - Follow the current npm registry configuration, including scoped registries.
 - Avoid repeated network requests with per-session and persistent caching.
 
@@ -48,7 +47,7 @@ Prerelease versions are excluded. Deprecated npm releases and yanked PyPI releas
 2. Open a supported dependency file.
 3. Wait for `DepDetect: OK` in the status bar.
 4. Hover over a dependency's status marker to inspect available versions.
-5. Select a version to replace the current one, or run **DepDetect: Update All dependencies of the active dependency file** from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+5. Select a version to replace the current one.
 
 For npm dependencies, choosing an individual version preserves a leading `^` or `~` constraint. For plain-text formats, DepDetect replaces only the version text and leaves the surrounding declaration in place.
 
@@ -68,7 +67,6 @@ Open the Command Palette and search for `DepDetect`:
 
 | Command | Description |
 | --- | --- |
-| **DepDetect: Update All dependencies of the active dependency file** | Replace all detected versions in the active file with their latest stable releases and save the file. |
 | **DepDetect: Retry to fetch the active dependency file** | Bypass cached metadata and fetch dependency versions again. |
 
 Version links shown in dependency hovers use an internal command and are not intended to be run manually.
@@ -94,7 +92,6 @@ Settings can be changed globally or per workspace. Empty marker text hides that 
 - Newly added dependencies are checked only after an explicit retry or after the file is reopened in a new VS Code session.
 - Maven versions referenced through properties such as `${revision}` are intentionally not edited.
 - Unversioned dependencies, local paths, Git URLs, workspace references, and other non-registry specifications are not update targets.
-- **Update All** moves every detected dependency to its latest stable release. Review the resulting changes before committing, especially when they include major-version upgrades.
 
 ## Feedback and source
 

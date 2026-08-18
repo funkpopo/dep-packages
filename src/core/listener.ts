@@ -200,7 +200,7 @@ export async function parseAndDecorate(
       fetched: currentFetched.filter(dep => dep.versions?.length).length,
       failed: currentFetched.filter(dep => dep.error).length,
     }
-    session.replaceItems = decorate(editor, currentFetched) ?? []
+    decorate(editor, currentFetched)
   }
   catch (e) {
     console.error(e)

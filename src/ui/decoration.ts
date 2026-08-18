@@ -39,7 +39,6 @@ export default function decoration(
   error?: string,
   info?: string,
   markerColumn?: number,
-  replaceItems?: ReplaceItem[],
 ): DecorationOptions {
   // Also handle json valued dependencies
 
@@ -92,16 +91,6 @@ export default function decoration(
           : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
     hoverMessage.appendMarkdown(` _( [${registryName}](${registryUrl}) )_`)
     hoverMessage.isTrusted = true
-
-    if (versions.length > 0) {
-      replaceItems?.push({
-        // Plain-text formats keep the operator outside the replacement range.
-        item: item.plainVersion ? versions[0] : `"${versions[0]}"`,
-        start,
-        end,
-        plain: item.plainVersion,
-      })
-    }
 
     const prefix = item.plainVersion ? '' : (prefixs.includes(version[0]) ? version[0] : '')
     const hoverVersions = orderHoverVersions(item, versions)

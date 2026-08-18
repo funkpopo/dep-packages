@@ -37,26 +37,19 @@
     "vscode": "^1.101.0"
   },
   "activationEvents": [
-    "onLanguage:json",
-    "onLanguage:toml",
-    "onLanguage:go.mod",
-    "onLanguage:xml",
-    "workspaceContains:package.json",
+    "workspaceContains:**/package.json",
+    "workspaceContains:**/requirements.txt",
     "workspaceContains:**/pyproject.toml",
     "workspaceContains:**/go.mod",
     "workspaceContains:**/pom.xml",
-    "onStartupFinished"
+    "onCommand:depdetect.replaceVersion",
+    "onCommand:depdetect.retry"
   ],
   "contributes": {
     "commands": [
       {
         "command": "depdetect.replaceVersion",
         "title": "Do not call manually ! Replace Version of the provided dependency",
-        "category": "🎈 DepDetect"
-      },
-      {
-        "command": "depdetect.updateAll",
-        "title": "Update All dependencies of the active dependency file",
         "category": "🎈 DepDetect"
       },
       {

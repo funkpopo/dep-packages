@@ -10,7 +10,6 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     Commands.replaceVersion,
     Commands.reload,
-    Commands.updateAll,
   )
 }
 

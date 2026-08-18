@@ -20,7 +20,6 @@ export interface DocumentSession {
   dependencies: Item[]
   fetchedDeps: Dependency[]
   fetchedDepsMap: Map<string, Dependency[]>
-  replaceItems: ReplaceItem[]
   generation: number
   documentVersion?: number
   inProgress: boolean
@@ -38,7 +37,6 @@ export function createDocumentSession(document: TextDocument): DocumentSession {
     dependencies: [],
     fetchedDeps: [],
     fetchedDepsMap: new Map(),
-    replaceItems: [],
     generation: 0,
     documentVersion: document.version,
     inProgress: false,

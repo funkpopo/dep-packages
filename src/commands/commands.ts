@@ -41,37 +41,4 @@ export const reload = commands.registerTextEditorCommand(
   },
 )
 
-export const updateAll = commands.registerTextEditorCommand(
-  'depdetect.updateAll',
-  (editor: TextEditor, edit: TextEditorEdit) => {
-    const session = editor && getDocumentSession(editor.document)
-    if (
-      editor
-      && session
-      && !session.inProgress
-      && session.replaceItems.length > 0
-      && isDependencyFile(editor.document.fileName)
-    ) {
-      session.inProgress = true
-      console.log('Replacing All')
-      for (let i = session.replaceItems.length - 1; i > -1; i--) {
-        const rItem = session.replaceItems[i]
-        edit.replace(
-          new Range(
-            editor.document.positionAt(rItem.start),
-            editor.document.positionAt(rItem.end),
-          ),
-          rItem.item,
-        )
-      }
-      session.inProgress = false
-      // Sometimes fails at the first time.
-      editor.document.save().then(a => {
-        if (!a)
-          editor.document.save()
-      })
-    }
-  },
-)
-
-export default { replaceVersion, reload, updateAll }
+export default { replaceVersion, reload }
