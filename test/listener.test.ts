@@ -59,7 +59,7 @@ describe('package document listener', () => {
     mocks.decorate.mockClear()
   })
 
-  it('does not fetch again for edits, saves, or reopening the same document', async () => {
+  it('does not fetch again when only the version changes or the document reopens', async () => {
     let text = `{
   "dependencies": {
     "example": "1.0.0"
@@ -82,6 +82,53 @@ describe('package document listener', () => {
 
     await listener(editor, { forceFresh: true })
     expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(2)
+  })
+
+  it('fetches metadata again when a dependency name changes', async () => {
+    let text = `{ "dependencies": { "vsce": "^2.15.0" } }`
+    const document = {
+      uri: { toString: () => 'file:///workspace/package.json' },
+      fileName: 'package.json',
+      getText: () => text,
+    }
+    const editor = { document } as never
+
+    await listener(editor)
+    text = `{ "dependencies": { "@vscode/vsce": "^2.15.0" } }`
+    await listener(editor)
+
+    expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(2)
+    expect((mocks.fetchPackageVersions.mock.lastCall?.[0] as Item[])[0].key).toBe('@vscode/vsce')
+    expect(getDocumentSession(document as never)?.fetchedDeps[0]).toMatchObject({
+      item: { key: '@vscode/vsce' },
+      versions: ['2.0.0'],
+    })
+  })
+
+  it('queues a changed dependency name while the initial fetch is running', async () => {
+    let resolveInitial: ((value: unknown) => void) | undefined
+    mocks.fetchPackageVersions.mockImplementationOnce(() => new Promise(resolve => {
+      resolveInitial = resolve
+    }))
+
+    let text = `{ "dependencies": { "vsce": "^2.15.0" } }`
+    const document = {
+      uri: { toString: () => 'file:///workspace/package.json' },
+      fileName: 'package.json',
+      getText: () => text,
+    }
+    const editor = { document } as never
+
+    const initialRequest = listener(editor)
+    text = `{ "dependencies": { "@vscode/vsce": "^2.15.0" } }`
+    const changedRequest = listener(editor)
+    resolveInitial?.([[{ item: mocks.fetchPackageVersions.mock.calls[0][0][0], versions: ['2.15.0'] }], new Map()])
+
+    await Promise.all([initialRequest, changedRequest])
+
+    expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(2)
+    expect((mocks.fetchPackageVersions.mock.lastCall?.[0] as Item[])[0].key).toBe('@vscode/vsce')
+    expect(getDocumentSession(document as never)?.fetchedDeps[0].item.key).toBe('@vscode/vsce')
   })
 
   it('recognizes go.mod documents and fetches Go module versions', async () => {

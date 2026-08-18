@@ -38,7 +38,26 @@ export interface ListenerOptions {
   forceFresh?: boolean
 }
 
-const pendingDocumentFetches = new Map<string, Promise<Dependency[]>>()
+interface PendingDocumentFetch {
+  identity: string
+  promise: Promise<Dependency[]>
+}
+
+const pendingDocumentFetches = new Map<string, PendingDocumentFetch>()
+
+function dependencyIdentity(items: Item[]) {
+  return items
+    .map(item => `${item.registry}:${item.key}`)
+    .sort()
+    .join('\n')
+}
+
+function hasDependencyIdentityChanged(editor: TextEditor) {
+  const session = getDocumentSession(editor.document)
+  if (!session)
+    return true
+  return dependencyIdentity(parseDeps(editor.document)) !== dependencyIdentity(session.dependencies)
+}
 
 function rebindDependencies(items: Item[], fetched: Dependency[]) {
   const fetchedByKey = new Map<string, Dependency[]>()
@@ -76,12 +95,24 @@ function fetchDocumentState(
   editor: TextEditor,
   items: Item[],
   forceFresh: boolean,
-) {
+): Promise<Dependency[]> {
   const key = documentKey(editor.document)
   const session = ensureDocumentSession(editor.document)
+  const identity = dependencyIdentity(items)
   const pending = pendingDocumentFetches.get(key)
-  if (pending)
-    return pending
+  if (pending) {
+    if (pending.identity === identity && !forceFresh)
+      return pending.promise
+
+    // A package name may be edited while the previous registry request is
+    // still running. Queue the new identity after it instead of reusing stale
+    // metadata for the newly named dependency.
+    return pending.promise.then(() => {
+      if (documentSessions.get(key) !== session)
+        return []
+      return fetchDocumentState(editor, items, forceFresh)
+    })
+  }
 
   const request: Promise<Dependency[]> = fetchPackageVersions(items, forceFresh)
     .then(([fetched]) => {
@@ -92,11 +123,11 @@ function fetchDocumentState(
       return fetched
     })
     .finally(() => {
-      if (pendingDocumentFetches.get(key) === request)
+      if (pendingDocumentFetches.get(key)?.promise === request)
         pendingDocumentFetches.delete(key)
     })
 
-  pendingDocumentFetches.set(key, request)
+  pendingDocumentFetches.set(key, { identity, promise: request })
   return request
 }
 
@@ -148,7 +179,7 @@ export async function parseAndDecorate(
       if (fetched.length === 0) {
         const pending = pendingDocumentFetches.get(key)
         if (pending)
-          fetched = await pending
+          fetched = await pending.promise
       }
     }
 
@@ -239,10 +270,10 @@ export default async function listener(
     if (isDependencyFile(editor.document)) {
       statusBarItem.show()
 
-      // Loading a document is the only automatic network operation. Changes
-      // and saves use the already fetched versions and only update positions.
+      // Version-only edits reuse fetched metadata. Adding, removing, or
+      // renaming a dependency fetches metadata for the new dependency set.
       const shouldFetch = options.forceFresh === true
-        || (options.fetch !== false && !hasDocumentState(editor))
+        || (options.fetch !== false && (!hasDocumentState(editor) || hasDependencyIdentityChanged(editor)))
       const session = ensureDocumentSession(editor.document)
 
       session.inProgress = true
@@ -282,12 +313,12 @@ export function registerListener(context: ExtensionContext) {
     workspace.onDidChangeTextDocument(e => {
       const editor = window.activeTextEditor
       if (editor && editor.document.uri.toString() === e.document.uri.toString() && isDependencyFile(e.document))
-        throttledListener(editor, 100, { fetch: false })
+        throttledListener(editor, 100)
     }),
     workspace.onDidSaveTextDocument(document => {
       const editor = window.activeTextEditor
       if (editor && editor.document.uri.toString() === document.uri.toString() && isDependencyFile(document))
-        throttledListener(editor, 100, { fetch: false })
+        throttledListener(editor, 100)
     }),
     workspace.onDidCloseTextDocument(document => {
       removeDocumentSession(document)
