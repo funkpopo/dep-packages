@@ -14,8 +14,7 @@ import {
 import { validRange } from 'semver'
 import { checkVersion } from '../semver/utils'
 import type Item from '../core/Item'
-import type { ReplaceItem } from '../commands/commands'
-import { status } from '../commands/commands'
+import type { ReplaceItem } from '../core/DocumentSession'
 import { prefixs } from '../constants'
 
 export function latestVersion() {
@@ -36,6 +35,7 @@ export default function decoration(
   error?: string,
   info?: string,
   markerColumn?: number,
+  replaceItems?: ReplaceItem[],
 ): DecorationOptions {
   // Also handle json valued dependencies
 
@@ -89,7 +89,7 @@ export default function decoration(
     hoverMessage.isTrusted = true
 
     if (versions.length > 0) {
-      status.replaceItems.push({
+      replaceItems?.push({
         // Plain-text formats keep the operator outside the replacement range.
         item: item.plainVersion ? versions[0] : `"${versions[0]}"`,
         start,

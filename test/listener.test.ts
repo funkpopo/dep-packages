@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type Item from '../src/core/Item'
-import listener from '../src/core/listener'
+import listener, { registerListener } from '../src/core/listener'
+import { documentSessions, getDocumentSession } from '../src/core/DocumentSession'
 
 const mocks = vi.hoisted(() => ({
   fetchPackageVersions: vi.fn(),
@@ -10,18 +11,23 @@ const mocks = vi.hoisted(() => ({
     hide: vi.fn(),
     setText: vi.fn(),
   },
+  closeDocument: undefined as undefined | ((document: unknown) => void),
 }))
 
 vi.mock('vscode', () => ({
   Range: class {},
-  window: {},
-  workspace: {},
-}))
-
-vi.mock('../src/commands/commands', () => ({
-  status: {
-    inProgress: false,
-    replaceItems: [],
+  window: {
+    activeTextEditor: undefined,
+    onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidChangeVisibleTextEditors: vi.fn(() => ({ dispose: vi.fn() })),
+  },
+  workspace: {
+    onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidSaveTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
+    onDidCloseTextDocument: vi.fn((handler: (document: unknown) => void) => {
+      mocks.closeDocument = handler
+      return { dispose: vi.fn() }
+    }),
   },
 }))
 
@@ -31,7 +37,7 @@ vi.mock('../src/core/fetcher', () => ({
 
 vi.mock('../src/ui/decorator', () => ({
   default: mocks.decorate,
-  decorationHandle: undefined,
+  disposeDocumentDecoration: vi.fn(),
 }))
 
 vi.mock('../src/ui/indicators', () => ({
@@ -47,6 +53,12 @@ mocks.fetchPackageVersions.mockImplementation(async (items: Item[]) => {
 })
 
 describe('package document listener', () => {
+  beforeEach(() => {
+    documentSessions.clear()
+    mocks.fetchPackageVersions.mockClear()
+    mocks.decorate.mockClear()
+  })
+
   it('does not fetch again for edits, saves, or reopening the same document', async () => {
     let text = `{
   "dependencies": {
@@ -115,5 +127,59 @@ require github.com/stretchr/testify v1.10.0
       registry: 'maven',
       plainVersion: true,
     })
+  })
+
+  it('keeps results isolated when two documents finish in reverse order', async () => {
+    const resolvers = new Map<string, (value: unknown) => void>()
+    mocks.fetchPackageVersions.mockImplementationOnce((items: Item[]) => new Promise(resolve => {
+      resolvers.set(items[0].key, resolve)
+    })).mockImplementationOnce((items: Item[]) => new Promise(resolve => {
+      resolvers.set(items[0].key, resolve)
+    }))
+
+    const makeEditor = (uri: string, name: string) => ({
+      document: {
+        uri: { toString: () => uri },
+        fileName: 'package.json',
+        getText: () => `{ "dependencies": { "${name}": "1.0.0" } }`,
+      },
+    }) as never
+    const editorA = makeEditor('file:///workspace/a/package.json', 'package-a')
+    const editorB = makeEditor('file:///workspace/b/package.json', 'package-b')
+
+    const requestA = listener(editorA)
+    const requestB = listener(editorB)
+    resolvers.get('package-b')?.([[{ item: (editorB as any).document && mocks.fetchPackageVersions.mock.calls[1][0][0], versions: ['2.0.0'] }], new Map()])
+    await requestB
+    resolvers.get('package-a')?.([[{ item: mocks.fetchPackageVersions.mock.calls[0][0][0], versions: ['3.0.0'] }], new Map()])
+    await requestA
+
+    expect(getDocumentSession((editorA as any).document)?.fetchedDeps[0].item.key).toBe('package-a')
+    expect(getDocumentSession((editorB as any).document)?.fetchedDeps[0].item.key).toBe('package-b')
+    expect(mocks.decorate).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes a closed document session and ignores its late result', async () => {
+    let resolveFetch: ((value: unknown) => void) | undefined
+    mocks.fetchPackageVersions.mockImplementationOnce(() => new Promise(resolve => {
+      resolveFetch = resolve
+    }))
+    const document = {
+      uri: { toString: () => 'file:///workspace/closing/package.json' },
+      fileName: 'package.json',
+      getText: () => `{ "dependencies": { "closing": "1.0.0" } }`,
+    }
+    const editor = { document } as never
+    const context = { subscriptions: { push: vi.fn() } } as never
+
+    registerListener(context)
+    const request = listener(editor)
+    expect(documentSessions.has(document.uri.toString())).toBe(true)
+    mocks.closeDocument?.(document)
+    resolveFetch?.([[{ item: mocks.fetchPackageVersions.mock.lastCall?.[0][0], versions: ['2.0.0'] }], new Map()])
+    await request
+
+    expect(documentSessions.has(document.uri.toString())).toBe(false)
+    expect(mocks.decorate).not.toHaveBeenCalled()
   })
 })

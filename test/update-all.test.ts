@@ -1,6 +1,7 @@
 import type { TextEditor, TextEditorEdit } from 'vscode'
-import { describe, expect, it, vi } from 'vitest'
-import { status } from '../src/commands/commands'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createDocumentSession, documentSessions } from '../src/core/DocumentSession'
+import '../src/commands/commands'
 
 const vscodeMocks = vi.hoisted(() => {
   class TestRange {
@@ -41,6 +42,14 @@ const updateAll = vscodeMocks.handlers.get('depdetect.updateAll') as (
 ) => void
 
 describe('update all command', () => {
+  beforeEach(() => documentSessions.clear())
+
+  function setReplacements(editor: TextEditor, replacements: Array<{ item: string, start: number, end: number, plain?: boolean }>) {
+    const session = createDocumentSession(editor.document)
+    session.replaceItems = replacements
+    documentSessions.set(editor.document.uri.toString(), session)
+  }
+
   it('preserves commas after dependency values', () => {
     const source = `{
   "dependencies": {
@@ -59,6 +68,7 @@ describe('update all command', () => {
 
     const editor = {
       document: {
+        uri: { toString: () => 'file:///workspace/package.json' },
         fileName: 'package.json',
         positionAt: (offset: number) => offset,
         save: () => Promise.resolve(true),
@@ -70,8 +80,7 @@ describe('update all command', () => {
       },
     } as unknown as TextEditorEdit
 
-    status.inProgress = false
-    status.replaceItems = replacements
+    setReplacements(editor, replacements)
     updateAll(editor, edit)
 
     const updated = appliedRanges
@@ -100,6 +109,7 @@ describe('update all command', () => {
     const appliedRanges: Array<{ start: number, end: number, text: string }> = []
     const editor = {
       document: {
+        uri: { toString: () => 'file:///workspace/go.mod' },
         fileName: 'go.mod',
         positionAt: (offset: number) => offset,
         save: () => Promise.resolve(true),
@@ -111,11 +121,10 @@ describe('update all command', () => {
       },
     } as unknown as TextEditorEdit
 
-    status.inProgress = false
-    status.replaceItems = [
+    setReplacements(editor, [
       { item: 'v1.5.0', start: firstStart, end: firstStart + 'v1.0.0'.length, plain: true },
       { item: 'v2.4.0', start: secondStart, end: secondStart + 'v2.0.0'.length, plain: true },
-    ]
+    ])
     updateAll(editor, edit)
 
     const updated = appliedRanges
@@ -134,6 +143,7 @@ describe('update all command', () => {
     const appliedRanges: Array<{ start: number, end: number, text: string }> = []
     const editor = {
       document: {
+        uri: { toString: () => 'file:///workspace/pom.xml' },
         fileName: 'C:\\workspace\\pom.xml',
         positionAt: (offset: number) => offset,
         save: () => Promise.resolve(true),
@@ -145,10 +155,32 @@ describe('update all command', () => {
       },
     } as unknown as TextEditorEdit
 
-    status.inProgress = false
-    status.replaceItems = [{ item: '2.0.0', start, end: start + '1.0.0'.length, plain: true }]
+    setReplacements(editor, [{ item: '2.0.0', start, end: start + '1.0.0'.length, plain: true }])
     updateAll(editor, edit)
 
     expect(appliedRanges).toEqual([{ start, end: start + '1.0.0'.length, text: '2.0.0' }])
+  })
+
+  it('only applies replacements from the active document session', () => {
+    const makeEditor = (uri: string) => ({
+      document: {
+        uri: { toString: () => uri },
+        fileName: 'package.json',
+        positionAt: (offset: number) => offset,
+        save: () => Promise.resolve(true),
+      },
+    }) as unknown as TextEditor
+    const editorA = makeEditor('file:///workspace/a/package.json')
+    const editorB = makeEditor('file:///workspace/b/package.json')
+    setReplacements(editorA, [{ item: 'from-a', start: 100, end: 110 }])
+    setReplacements(editorB, [{ item: 'from-b', start: 10, end: 20 }])
+    const applied: Array<{ start: number, end: number, text: string }> = []
+    const edit = {
+      replace: (range: { start: number, end: number }, text: string) => applied.push({ ...range, text }),
+    } as unknown as TextEditorEdit
+
+    updateAll(editorB, edit)
+
+    expect(applied).toEqual([{ start: 10, end: 20, text: 'from-b' }])
   })
 })

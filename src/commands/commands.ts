@@ -2,18 +2,8 @@ import type { TextEditor, TextEditorEdit } from 'vscode'
 import { Range, commands } from 'vscode'
 import jsonListener from '../core/listener'
 import { freshChecker } from '../api'
-
-export interface ReplaceItem {
-  item: string
-  start: number
-  end: number
-  plain?: boolean
-}
-
-export const status = {
-  inProgress: false,
-  replaceItems: [] as ReplaceItem[],
-}
+import type { ReplaceItem } from '../core/DocumentSession'
+import { getDocumentSession } from '../core/DocumentSession'
 
 function isDependencyFile(fileName: string) {
   const normalized = fileName.toLocaleLowerCase()
@@ -27,17 +17,18 @@ function isDependencyFile(fileName: string) {
 export const replaceVersion = commands.registerTextEditorCommand(
   'depdetect.replaceVersion',
   (editor: TextEditor, edit: TextEditorEdit, info: ReplaceItem) => {
-    if (editor && info && !status.inProgress) {
+    const session = editor && getDocumentSession(editor.document)
+    if (editor && info && session && !session.inProgress) {
       const { fileName } = editor.document
       if (isDependencyFile(fileName)) {
-        status.inProgress = true
+        session.inProgress = true
         console.log('Replacing', info.item)
         const start = info.plain ? info.start : info.start + 1
         const end = info.plain ? info.end : info.end - 1
         const value = info.plain ? info.item : info.item.substr(1, info.item.length - 2)
         edit.replace(new Range(editor.document.positionAt(start), editor.document.positionAt(end)), value)
 
-        status.inProgress = false
+        session.inProgress = false
       }
     }
   },
@@ -55,17 +46,18 @@ export const reload = commands.registerTextEditorCommand(
 export const updateAll = commands.registerTextEditorCommand(
   'depdetect.updateAll',
   (editor: TextEditor, edit: TextEditorEdit) => {
+    const session = editor && getDocumentSession(editor.document)
     if (
       editor
-      && !status.inProgress
-      && status.replaceItems
-      && status.replaceItems.length > 0
+      && session
+      && !session.inProgress
+      && session.replaceItems.length > 0
       && isDependencyFile(editor.document.fileName)
     ) {
-      status.inProgress = true
+      session.inProgress = true
       console.log('Replacing All')
-      for (let i = status.replaceItems.length - 1; i > -1; i--) {
-        const rItem = status.replaceItems[i]
+      for (let i = session.replaceItems.length - 1; i > -1; i--) {
+        const rItem = session.replaceItems[i]
         edit.replace(
           new Range(
             editor.document.positionAt(rItem.start),
@@ -74,7 +66,7 @@ export const updateAll = commands.registerTextEditorCommand(
           rItem.item,
         )
       }
-      status.inProgress = false
+      session.inProgress = false
       // Sometimes fails at the first time.
       editor.document.save().then(a => {
         if (!a)

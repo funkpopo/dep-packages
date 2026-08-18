@@ -15,7 +15,8 @@ import {
   languages,
 } from 'vscode'
 
-import { fetchedDepsMap, getFetchedDependency } from '../core/listener'
+import { getFetchedDependency } from '../core/listener'
+import { getDocumentSession } from '../core/DocumentSession'
 import { RE_VERSION } from '../json/parse'
 import { prefixs } from '../constants'
 
@@ -48,7 +49,7 @@ export class VersionCompletions implements CompletionItemProvider {
     _token: CancellationToken,
     _context: CompletionContext,
   ): ProviderResult<CompletionItem[] | CompletionList<CompletionItem>> {
-    if (!fetchedDepsMap)
+    if (!getDocumentSession(document))
       return
 
     const match = document.lineAt(position).text.match(RE_VERSION)

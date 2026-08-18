@@ -1,17 +1,23 @@
 import type { ExtensionContext, Position, TextDocument, TextEditor } from 'vscode'
 import { Range, window, workspace } from 'vscode'
 
-import decorate, { decorationHandle } from '../ui/decorator'
+import decorate, { disposeDocumentDecoration } from '../ui/decorator'
 import { parseJson } from '../json/parse'
 import { parseRequirements } from '../requirements/parse'
 import { parsePyProject } from '../pyproject/parse'
 import { parseGoMod } from '../gomod/parse'
 import { parsePom } from '../maven/parse'
-import { status } from '../commands/commands'
 import { statusBarItem } from '../ui/indicators'
 import type Dependency from './Dependency'
 import type Item from './Item'
 import { fetchPackageVersions } from './fetcher'
+import {
+  documentKey,
+  documentSessions,
+  ensureDocumentSession,
+  getDocumentSession,
+  removeDocumentSession,
+} from './DocumentSession'
 
 function parseDeps(document: TextDocument): Item[] {
   if (isRequirements(document))
@@ -25,11 +31,6 @@ function parseDeps(document: TextDocument): Item[] {
   return parseJson(document.getText())
 }
 
-let dependencies: Item[]
-let fetchedDeps: Dependency[]
-let fetchedDepsMap: Map<string, Dependency[]>
-export { dependencies, fetchedDeps, fetchedDepsMap }
-
 export interface ListenerOptions {
   /** Fetch package metadata when this editor is first loaded. */
   fetch?: boolean
@@ -37,25 +38,7 @@ export interface ListenerOptions {
   forceFetch?: boolean
 }
 
-interface DocumentState {
-  fetched: Dependency[]
-}
-
-/**
- * Keep the fetched data associated with the document that produced it. The
- * extension used to keep only one global result, which made every save look
- * like a reason to fetch the whole file again.
- */
-const documentStates = new Map<string, DocumentState>()
-const pendingDocumentFetches = new Map<string, Promise<DocumentState>>()
-
-function documentKey(document: TextDocument) {
-  return document.uri.toString()
-}
-
-function createDocumentState(fetched: Dependency[]): DocumentState {
-  return { fetched }
-}
+const pendingDocumentFetches = new Map<string, Promise<Dependency[]>>()
 
 function rebindDependencies(items: Item[], fetched: Dependency[]) {
   const fetchedByKey = new Map<string, Dependency[]>()
@@ -95,15 +78,18 @@ function fetchDocumentState(
   forceFresh: boolean,
 ) {
   const key = documentKey(editor.document)
+  const session = ensureDocumentSession(editor.document)
   const pending = pendingDocumentFetches.get(key)
   if (pending)
     return pending
 
-  const request = fetchPackageVersions(items, forceFresh)
+  const request: Promise<Dependency[]> = fetchPackageVersions(items, forceFresh)
     .then(([fetched]) => {
-      const state = createDocumentState(fetched)
-      documentStates.set(key, state)
-      return state
+      // Closing a document invalidates its session. Registry/cache work may
+      // finish, but must never recreate or mutate the closed editor state.
+      if (documentSessions.get(key) === session)
+        session.fetchedDeps = fetched
+      return fetched
     })
     .finally(() => {
       if (pendingDocumentFetches.get(key) === request)
@@ -116,14 +102,11 @@ function fetchDocumentState(
 
 function hasDocumentState(editor: TextEditor) {
   const key = documentKey(editor.document)
-  return documentStates.has(key) || pendingDocumentFetches.has(key)
+  return documentSessions.has(key) || pendingDocumentFetches.has(key)
 }
 
 export function getFetchedDependency(document: TextDocument, dep: string, position: Position): Dependency | undefined {
-  if (!fetchedDepsMap)
-    return
-
-  const fetchedDep = fetchedDepsMap.get(dep)
+  const fetchedDep = getDocumentSession(document)?.fetchedDepsMap.get(dep)
   if (!fetchedDep)
     return
   if (fetchedDep.length === 1) {
@@ -152,35 +135,51 @@ export async function parseAndDecorate(
   try {
     const parsedDependencies = parseDeps(editor.document)
     const key = documentKey(editor.document)
-    let state: DocumentState | undefined
+    const session = ensureDocumentSession(editor.document)
+    const generation = ++session.generation
+    session.inProgress = true
+    let fetched: Dependency[] | undefined
 
     if (fetchDeps) {
-      state = await fetchDocumentState(editor, parsedDependencies, forceFresh)
+      fetched = await fetchDocumentState(editor, parsedDependencies, forceFresh)
     }
     else {
-      state = documentStates.get(key)
-      if (!state) {
+      fetched = session.fetchedDeps
+      if (fetched.length === 0) {
         const pending = pendingDocumentFetches.get(key)
         if (pending)
-          state = await pending
+          fetched = await pending
       }
     }
+
+    if (documentSessions.get(key) !== session || session.generation !== generation)
+      return
 
     // The document may have changed while package metadata was being
     // fetched. Re-read it so offsets and the visible decorations belong to
     // the current document version.
     const currentDependencies = parseDeps(editor.document)
-    const currentFetched = rebindDependencies(currentDependencies, state?.fetched ?? [])
-    dependencies = currentDependencies
-    fetchedDeps = currentFetched
-    fetchedDepsMap = getFetchedMap(currentFetched)
-    decorate(editor, currentFetched)
+    const currentFetched = rebindDependencies(currentDependencies, fetched ?? [])
+    session.dependencies = currentDependencies
+    session.fetchedDeps = currentFetched
+    session.fetchedDepsMap = getFetchedMap(currentFetched)
+    session.documentVersion = editor.document.version
+    session.summary = {
+      total: currentFetched.length,
+      fetched: currentFetched.filter(dep => dep.versions?.length).length,
+      failed: currentFetched.filter(dep => dep.error).length,
+    }
+    session.replaceItems = decorate(editor, currentFetched) ?? []
   }
   catch (e) {
     console.error(e)
     statusBarItem.setText('Dependency file is not valid!')
-    if (decorationHandle)
-      decorationHandle.dispose()
+    disposeDocumentDecoration(editor)
+  }
+  finally {
+    const session = getDocumentSession(editor.document)
+    if (session)
+      session.inProgress = false
   }
 }
 
@@ -238,21 +237,16 @@ export default async function listener(
 ) {
   if (editor) {
     if (isDependencyFile(editor.document)) {
-      status.inProgress = true
-      status.replaceItems = []
       statusBarItem.show()
 
       // Loading a document is the only automatic network operation. Changes
       // and saves use the already fetched versions and only update positions.
       const shouldFetch = options.forceFetch === true
         || (options.fetch !== false && !hasDocumentState(editor))
+      const session = ensureDocumentSession(editor.document)
 
-      try {
-        await parseAndDecorate(editor, false, shouldFetch, options.forceFetch === true)
-      }
-      finally {
-        status.inProgress = false
-      }
+      session.inProgress = true
+      await parseAndDecorate(editor, false, shouldFetch, options.forceFetch === true)
     }
     else {
       statusBarItem.hide()
@@ -294,6 +288,10 @@ export function registerListener(context: ExtensionContext) {
       const editor = window.activeTextEditor
       if (editor && editor.document.uri.toString() === document.uri.toString() && isDependencyFile(document))
         throttledListener(editor, 100, { fetch: false })
+    }),
+    workspace.onDidCloseTextDocument(document => {
+      removeDocumentSession(document)
+      disposeDocumentDecoration(document)
     }),
     // When activation is triggered while VS Code is restoring the workbench,
     // activeTextEditor can briefly be undefined and no active-editor event is

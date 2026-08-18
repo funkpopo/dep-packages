@@ -3,11 +3,21 @@ import { workspace } from 'vscode'
 import type Dependency from '../core/Dependency'
 import decoration, { latestVersion } from './decoration'
 import { statusBarItem } from './indicators'
+import type { ReplaceItem } from '../core/DocumentSession'
 
 export let decorationHandle: TextEditorDecorationType
+const documentDecorationHandles = new Map<string, TextEditorDecorationType>()
 
-export default function decorate(editor: TextEditor, dependencies: Dependency[]) {
+export function disposeDocumentDecoration(editorOrDocument: TextEditor | TextEditor['document']) {
+  const document = 'document' in editorOrDocument ? editorOrDocument.document : editorOrDocument
+  const key = document.uri.toString()
+  documentDecorationHandles.get(key)?.dispose()
+  documentDecorationHandles.delete(key)
+}
+
+export default function decorate(editor: TextEditor, dependencies: Dependency[]): ReplaceItem[] {
   const pref = loadPref(editor)
+  const replaceItems: ReplaceItem[] = []
 
   const errors: string[] = []
   const filtered = dependencies.filter(dep => {
@@ -43,6 +53,7 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
         dependency.error,
         dependency.info,
         markerColumn,
+        replaceItems,
       )
 
       if (decor)
@@ -54,16 +65,17 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
     }
   }
 
-  if (decorationHandle)
-    decorationHandle.dispose()
+  disposeDocumentDecoration(editor)
 
   decorationHandle = latestVersion()
+  documentDecorationHandles.set(editor.document.uri.toString(), decorationHandle)
   editor.setDecorations(decorationHandle, options)
 
   // if (errors.length)
   //   statusBarItem.setText('❗️ Completed with errors')
   // else
   statusBarItem.setText('OK')
+  return replaceItems
 }
 
 function loadPref(editor: TextEditor) {
