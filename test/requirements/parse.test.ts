@@ -40,7 +40,7 @@ local @ file:../local
   it('replaces only version text and preserves the existing operator once', () => {
     const items = parseRequirements(source)
     const item = items[0]
-    const updated = source.slice(0, item.start) + '9.9.9' + source.slice(item.end)
+    const updated = `${source.slice(0, item.start)}9.9.9${source.slice(item.end)}`
 
     expect(updated).toContain('requests==9.9.9')
     expect(updated).not.toContain('requests====9.9.9')

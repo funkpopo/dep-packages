@@ -4,7 +4,7 @@ import { parsePyProject } from '../../src/pyproject/parse'
 
 describe('pyproject parser', () => {
   it('parses PEP 621 core and optional dependencies with exact offsets', () => {
-    const source = readFileSync('./pyproject.toml', 'utf8')
+    const source = readFileSync(new URL('./fixture.toml', import.meta.url), 'utf8')
     const items = parsePyProject(source)
 
     expect(items.map(item => item.key)).toEqual([
@@ -54,12 +54,12 @@ describe('pyproject parser', () => {
   it('replaces PEP 621 and Poetry versions without duplicating constraints', () => {
     const pepSource = `\n[project]\ndependencies = [\n  "requests>=2.31.0",\n]\n`
     const pepItem = parsePyProject(pepSource)[0]
-    const updatedPep = pepSource.slice(0, pepItem.start) + '9.9.9' + pepSource.slice(pepItem.end)
+    const updatedPep = `${pepSource.slice(0, pepItem.start)}9.9.9${pepSource.slice(pepItem.end)}`
     expect(updatedPep).toContain('"requests>=9.9.9"')
 
     const poetrySource = `\n[tool.poetry.dependencies]\nrequests = "^2.31.0"\n`
     const poetryItem = parsePyProject(poetrySource)[0]
-    const updatedPoetry = poetrySource.slice(0, poetryItem.start) + '9.9.9' + poetrySource.slice(poetryItem.end)
+    const updatedPoetry = `${poetrySource.slice(0, poetryItem.start)}9.9.9${poetrySource.slice(poetryItem.end)}`
     expect(updatedPoetry).toContain('requests = "^9.9.9"')
   })
 })

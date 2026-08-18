@@ -4,7 +4,6 @@ import type Dependency from '../core/Dependency'
 import decoration, { latestVersion } from './decoration'
 import { statusBarItem } from './indicators'
 
-// eslint-disable-next-line import/no-mutable-exports
 export let decorationHandle: TextEditorDecorationType
 
 export default function decorate(editor: TextEditor, dependencies: Dependency[]) {

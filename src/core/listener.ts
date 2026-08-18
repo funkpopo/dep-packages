@@ -1,4 +1,3 @@
-/* eslint-disable import/no-mutable-exports */
 import type { ExtensionContext, Position, TextDocument, TextEditor } from 'vscode'
 import { Range, window, workspace } from 'vscode'
 

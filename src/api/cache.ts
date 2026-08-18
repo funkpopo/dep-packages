@@ -3,7 +3,7 @@ import os from 'node:os'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { ttl } from '../utils/ttl'
 
-const cacheDir = resolve(os.tmpdir(), 'vscode-ext-packages')
+const cacheDir = resolve(os.tmpdir(), 'depdetect')
 const cachePath = resolve(cacheDir, 'cache.json')
 const cacheMaxExpire = 7 * 24 * 60 * 60_000 // 7day
 
