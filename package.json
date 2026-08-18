@@ -85,7 +85,7 @@
   },
   "scripts": {
     "build": "tsup --external vscode",
-    "dev": "pnpm run build --watch",
+    "dev": "tsup --watch",
     "lint": "eslint .",
     "vscode:prepublish": "npm run build",
     "publish": "vsce publish",
