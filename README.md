@@ -39,6 +39,12 @@ editing and saving do not automatically query the registry.
 
 `depdetect` is inspired by [crates](https://github.com/serayuzgur/crates), which is an extension for managing Rust dependencies.
 
+## Upstream and attribution
+
+This project is a modified fork of [Riri's vscode-ext-packages](https://github.com/Daydreamer-riri/vscode-ext-packages), originally released under the MIT License.
+
+The original work is Copyright © 2023 [Riri](https://github.com/Daydreamer-riri). Modifications in this repository are Copyright © 2026 funkpopo. The complete copyright and permission notices are retained in [LICENSE](./LICENSE).
+
 ## License
 
-[MIT](./LICENSE) License © 2023 [Riri](https://github.com/Daydreamer-riri)
+Distributed under the [MIT License](./LICENSE).
