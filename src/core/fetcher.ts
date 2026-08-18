@@ -1,13 +1,12 @@
 import { CompletionItem, CompletionItemKind, CompletionList } from 'vscode'
-import compareVersions from '../semver/compareVersion'
 import { sortText } from '../providers/autoCompletion'
 import { statusBarItem } from '../ui/indicators'
 import type { PackageData } from '../api'
 import { getRoot } from '../utils/resolve'
-import { comparePythonVersions, isStablePythonVersion } from '../semver/python'
 import type Item from './Item'
 import type Dependency from './Dependency'
 import { getPackageDatas } from './worker'
+import { normalizeVersions, retainRelevantVersions } from './versions'
 
 export async function fetchPackageVersions(
   dependencies: Item[],
@@ -26,14 +25,7 @@ export async function fetchPackageVersions(
         if (!data)
           throw new Error('Get Package information failure')
 
-        const versions = data.version
-          .filter(version => item.registry === 'pypi'
-            ? isStablePythonVersion(version)
-            : item.registry === 'maven'
-              ? compareVersions.validate(version) && !version.includes('-')
-              : !version.includes('-'))
-          .sort(item.registry === 'pypi' ? comparePythonVersions : compareVersions)
-          .reverse()
+        const versions = retainRelevantVersions(item, normalizeVersions(item, data.version))
         let i = 0
         const versionCompletionItems = new CompletionList(
           versions.map(version => {

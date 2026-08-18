@@ -7,6 +7,7 @@ import { pypiVersions } from './pypi'
 import { goModuleVersions } from './gomod'
 import { mavenVersions } from './maven'
 import { protocolDep } from './utils'
+import { normalizeVersions } from '../core/versions'
 
 const cacheInit = Object.entries(loadCache())
 const init = cacheInit.map(([key, { cacheTime, data }]) => {
@@ -40,8 +41,13 @@ export async function getPackageData(
   const name = item.key
   const cacheKey = `${item.registry}:${name}`
 
-  const cacheData: string[] | undefined = cache.get(cacheKey)
+  const cached: string[] | undefined = cache.get(cacheKey)
+  const cacheData = cached ? normalizeVersions(item, cached) : undefined
   if (cacheData && !forceFresh) {
+    if (cached && (cached.length !== cacheData.length || cached.some((version, index) => version !== cacheData[index]))) {
+      cache.set(cacheKey, cacheData)
+      cacheChanged = true
+    }
     console.log('vscode-packages: use cache', name)
     return { version: cacheData }
   }
@@ -71,9 +77,10 @@ async function reGetVersion(item: Item, root: string): Promise<string[] | undefi
             : await version(item.key, root)
 
       if (data) {
-        cache.set(`${item.registry}:${item.key}`, data)
+        const versions = normalizeVersions(item, data)
+        cache.set(`${item.registry}:${item.key}`, versions)
         cacheChanged = true
-        return data
+        return versions
       }
     }
     catch (e) {

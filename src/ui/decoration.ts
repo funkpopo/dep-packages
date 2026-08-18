@@ -12,10 +12,15 @@ import {
   window,
 } from 'vscode'
 import { validRange } from 'semver'
-import { checkVersion } from '../semver/utils'
 import type Item from '../core/Item'
 import type { ReplaceItem } from '../core/DocumentSession'
 import { prefixs } from '../constants'
+import {
+  HOVER_RECENT_VERSION_COUNT,
+  getMaxSatisfyingVersion,
+  orderHoverVersions,
+  versionSatisfiesItem,
+} from '../core/versions'
 
 export function latestVersion() {
   return window.createTextEditorDecorationType({
@@ -45,7 +50,8 @@ export default function decoration(
   const endofline = line.end
   const end = item.end
   const version = item.value === 'latest' ? '*' : item.value
-  const [satisfies, maxSatisfying] = checkVersion(version, versions)
+  const maxSatisfying = getMaxSatisfyingVersion(item, versions)
+  const satisfies = Boolean(versions[0]) && versionSatisfiesItem(item, versions[0])
 
   const formatError = (error: string) => {
     // Markdown does not like newlines in middle of emphasis, or spaces next to emphasis characters.
@@ -99,8 +105,9 @@ export default function decoration(
     }
 
     const prefix = item.plainVersion ? '' : (prefixs.includes(version[0]) ? version[0] : '')
-    for (let i = 0; i < versions.length; i++) {
-      const version = versions[i]
+    const hoverVersions = orderHoverVersions(item, versions)
+    for (let i = 0; i < hoverVersions.length; i++) {
+      const version = hoverVersions[i]
       const replaceData: ReplaceItem = {
         item: item.plainVersion ? version : `"${prefix}${version}"`,
         start,
@@ -110,9 +117,16 @@ export default function decoration(
       const isCurrent = version === maxSatisfying
       const encoded = encodeURI(JSON.stringify(replaceData))
       // const docs = (i === 0 || isCurrent) ? `[(docs)](https://docs.rs/crate/${item.key}/${version})` : ''
-      const command = `${isCurrent ? '**' : ''}[${version}](command:depdetect.replaceVersion?${encoded})${isCurrent ? '**' : ''}`
+      const isLatest = version === versions[0]
+      const annotations = [
+        isLatest ? 'latest stable' : '',
+        isCurrent ? 'highest matching constraint' : '',
+      ].filter(Boolean)
+      const command = `${isCurrent ? '**' : ''}[${version}](command:depdetect.replaceVersion?${encoded})${isCurrent ? '**' : ''}${annotations.length ? ` — ${annotations.join(', ')}` : ''}`
       hoverMessage.appendMarkdown('\n * ')
       hoverMessage.appendMarkdown(command)
+      if (i + 1 === HOVER_RECENT_VERSION_COUNT && hoverVersions.length > HOVER_RECENT_VERSION_COUNT)
+        hoverMessage.appendMarkdown('\n\n _Scroll for more retained stable versions._')
     }
     if (version === `${prefix}?`) {
       const version = versions[0]
