@@ -2,7 +2,7 @@
   "publisher": "ririd",
   "name": "depdetect",
   "displayName": "depdetect",
-  "version": "0.8.5-fix11",
+  "version": "0.8.5-fix12",
   "private": true,
   "packageManager": "pnpm@8.12.0",
   "description": "Detects and manages dependencies versions in projects.",
@@ -21,6 +21,8 @@
     "npm",
     "go",
     "golang",
+    "java",
+    "maven",
     "javascript",
     "json"
   ],
@@ -40,9 +42,11 @@
     "onLanguage:json",
     "onLanguage:toml",
     "onLanguage:go.mod",
+    "onLanguage:xml",
     "workspaceContains:package.json",
     "workspaceContains:**/pyproject.toml",
     "workspaceContains:**/go.mod",
+    "workspaceContains:**/pom.xml",
     "onStartupFinished"
   ],
   "contributes": {

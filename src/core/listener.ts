@@ -7,6 +7,7 @@ import { parseJson } from '../json/parse'
 import { parseRequirements } from '../requirements/parse'
 import { parsePyProject } from '../pyproject/parse'
 import { parseGoMod } from '../gomod/parse'
+import { parsePom } from '../maven/parse'
 import { status } from '../commands/commands'
 import { statusBarItem } from '../ui/indicators'
 import type Dependency from './Dependency'
@@ -20,6 +21,8 @@ function parseDeps(document: TextDocument): Item[] {
     return parsePyProject(document.getText())
   if (isGoMod(document))
     return parseGoMod(document.getText())
+  if (isPom(document))
+    return parsePom(document.getText())
   return parseJson(document.getText())
 }
 
@@ -198,8 +201,12 @@ function isGoMod(document: TextDocument) {
   return document.fileName.toLocaleLowerCase().endsWith('go.mod')
 }
 
+function isPom(document: TextDocument) {
+  return /(?:^|[\\/])pom\.xml$/i.test(document.fileName)
+}
+
 function isDependencyFile(document: TextDocument) {
-  return isPackageJson(document) || isRequirements(document) || isPyProject(document) || isGoMod(document)
+  return isPackageJson(document) || isRequirements(document) || isPyProject(document) || isGoMod(document) || isPom(document)
 }
 
 function isDiffEditor(editor: TextEditor | undefined) {

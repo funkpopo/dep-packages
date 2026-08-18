@@ -4,10 +4,10 @@ import { sortText } from '../providers/autoCompletion'
 import { statusBarItem } from '../ui/indicators'
 import { type PackageData, freshChecker } from '../api'
 import { getRoot } from '../utils/resolve'
+import { comparePythonVersions, isStablePythonVersion } from '../semver/python'
 import type Item from './Item'
 import type Dependency from './Dependency'
 import { getPackageDatas } from './worker'
-import { comparePythonVersions, isStablePythonVersion } from '../semver/python'
 
 export async function fetchPackageVersions(
   dependencies: Item[],
@@ -29,7 +29,9 @@ export async function fetchPackageVersions(
         const versions = data.version
           .filter(version => item.registry === 'pypi'
             ? isStablePythonVersion(version)
-            : !version.includes('-'))
+            : item.registry === 'maven'
+              ? compareVersions.validate(version) && !version.includes('-')
+              : !version.includes('-'))
           .sort(item.registry === 'pypi' ? comparePythonVersions : compareVersions)
           .reverse()
         let i = 0

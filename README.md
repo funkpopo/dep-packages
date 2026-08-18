@@ -8,14 +8,14 @@
 </p>
 
 <p align="center">
-DepDetect is a VS Code extension for Node.js, Python, and Go dependencies. It helps developers inspect and update versions directly in project dependency files.
+DepDetect is a VS Code extension for Node.js, Python, Go, and Maven dependencies. It helps developers inspect and update versions directly in project dependency files.
 </p>
 
 ## Features
 
-- Displays the latest version of npm, PyPI, and Go modules next to them.
+- Displays the latest version of npm, PyPI, Go modules, and Maven Central artifacts next to them.
 - Shows all versions (clickable) on the tooltip of a hovered dependency.
-- Supports `package.json`, Python `requirements.txt` and `pyproject.toml`, and Go `go.mod` files.
+- Supports `package.json`, Python `requirements.txt` and `pyproject.toml`, Go `go.mod`, and Maven `pom.xml` files.
 - Supports replacing one dependency or updating all displayed dependencies at once.
 
 ## Refreshing version data

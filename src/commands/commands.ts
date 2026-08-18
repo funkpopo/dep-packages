@@ -21,6 +21,7 @@ function isDependencyFile(fileName: string) {
     || normalized.endsWith('requirements.txt')
     || normalized.endsWith('pyproject.toml')
     || normalized.endsWith('go.mod')
+    || /(?:^|[\\/])pom\.xml$/.test(normalized)
 }
 
 export const replaceVersion = commands.registerTextEditorCommand(

@@ -93,4 +93,27 @@ require github.com/stretchr/testify v1.10.0
       plainVersion: true,
     })
   })
+
+  it('recognizes pom.xml documents and fetches Maven artifact versions', async () => {
+    const document = {
+      uri: { toString: () => 'file:///workspace/pom.xml' },
+      fileName: 'C:\\workspace\\pom.xml',
+      getText: () => `<project><dependencies><dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox</artifactId>
+        <version>2.0.34</version>
+      </dependency></dependencies></project>`,
+    }
+
+    await listener({ document } as never)
+
+    const items = mocks.fetchPackageVersions.mock.lastCall?.[0] as Item[]
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
+      key: 'org.apache.pdfbox:pdfbox',
+      value: '2.0.34',
+      registry: 'maven',
+      plainVersion: true,
+    })
+  })
 })

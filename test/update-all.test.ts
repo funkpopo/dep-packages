@@ -127,4 +127,28 @@ describe('update all command', () => {
     expect(updated).toContain('example.com/first v1.5.0')
     expect(updated).toContain('example.com/second/v2 v2.4.0 // indirect')
   })
+
+  it('updates version text in pom.xml files without changing XML tags', () => {
+    const source = '<dependency><version>1.0.0</version></dependency>'
+    const start = source.indexOf('1.0.0')
+    const appliedRanges: Array<{ start: number, end: number, text: string }> = []
+    const editor = {
+      document: {
+        fileName: 'C:\\workspace\\pom.xml',
+        positionAt: (offset: number) => offset,
+        save: () => Promise.resolve(true),
+      },
+    } as unknown as TextEditor
+    const edit = {
+      replace: (range: { start: number, end: number }, text: string) => {
+        appliedRanges.push({ ...range, text })
+      },
+    } as unknown as TextEditorEdit
+
+    status.inProgress = false
+    status.replaceItems = [{ item: '2.0.0', start, end: start + '1.0.0'.length, plain: true }]
+    updateAll(editor, edit)
+
+    expect(appliedRanges).toEqual([{ start, end: start + '1.0.0'.length, text: '2.0.0' }])
+  })
 })

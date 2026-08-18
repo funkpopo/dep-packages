@@ -5,6 +5,7 @@ import { dumpCache, loadCache } from './cache'
 import { version } from './version'
 import { pypiVersions } from './pypi'
 import { goModuleVersions } from './gomod'
+import { mavenVersions } from './maven'
 import { protocolDep } from './utils'
 
 export const freshChecker = {
@@ -72,7 +73,9 @@ async function reGetVersion(item: Item, root: string): Promise<string[] | undefi
         ? await pypiVersions(item.key)
         : item.registry === 'go'
           ? await goModuleVersions(item.key)
-          : await version(item.key, root)
+          : item.registry === 'maven'
+            ? await mavenVersions(item.key)
+            : await version(item.key, root)
 
       if (data) {
         cache.set(`${item.registry}:${item.key}`, data)

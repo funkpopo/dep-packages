@@ -75,12 +75,16 @@ export default function decoration(
     hoverMessage.appendMarkdown('#### Versions')
     const registryName = item.registry === 'pypi'
       ? 'Check PyPI'
-      : item.registry === 'go' ? 'Check pkg.go.dev' : 'Check NPM'
+      : item.registry === 'go'
+        ? 'Check pkg.go.dev'
+        : item.registry === 'maven' ? 'Check Maven Central' : 'Check NPM'
     const registryUrl = item.registry === 'pypi'
       ? `https://pypi.org/project/${item.key}/`
       : item.registry === 'go'
         ? `https://pkg.go.dev/${item.key}`
-        : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
+        : item.registry === 'maven'
+          ? `https://central.sonatype.com/artifact/${item.key.replace(':', '/')}`
+          : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
     hoverMessage.appendMarkdown(` _( [${registryName}](${registryUrl}) )_`)
     hoverMessage.isTrusted = true
 
