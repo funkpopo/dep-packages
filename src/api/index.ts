@@ -8,13 +8,6 @@ import { goModuleVersions } from './gomod'
 import { mavenVersions } from './maven'
 import { protocolDep } from './utils'
 
-export const freshChecker = {
-  needFresh: false,
-  set(newVal: boolean) {
-    this.needFresh = newVal
-  },
-}
-
 const cacheInit = Object.entries(loadCache())
 const init = cacheInit.map(([key, { cacheTime, data }]) => {
   return {
@@ -38,7 +31,7 @@ export interface PackageData {
 export async function getPackageData(
   item: Item,
   root: string,
-  forceFresh = freshChecker.needFresh,
+  forceFresh = false,
 ): Promise<PackageData> {
   const preTest = protocolDep(item)
   if (preTest)

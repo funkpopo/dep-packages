@@ -1,7 +1,6 @@
 import type { TextEditor, TextEditorEdit } from 'vscode'
 import { Range, commands } from 'vscode'
 import jsonListener from '../core/listener'
-import { freshChecker } from '../api'
 import type { ReplaceItem } from '../core/DocumentSession'
 import { getDocumentSession } from '../core/DocumentSession'
 
@@ -37,9 +36,8 @@ export const replaceVersion = commands.registerTextEditorCommand(
 export const reload = commands.registerTextEditorCommand(
   'depdetect.retry',
   (editor: TextEditor) => {
-    freshChecker.set(true)
     if (editor)
-      void jsonListener(editor, { forceFetch: true })
+      void jsonListener(editor, { forceFresh: true })
   },
 )
 

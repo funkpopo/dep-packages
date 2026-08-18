@@ -35,7 +35,7 @@ export interface ListenerOptions {
   /** Fetch package metadata when this editor is first loaded. */
   fetch?: boolean
   /** Ignore the document state and fetch fresh package metadata. */
-  forceFetch?: boolean
+  forceFresh?: boolean
 }
 
 const pendingDocumentFetches = new Map<string, Promise<Dependency[]>>()
@@ -241,12 +241,12 @@ export default async function listener(
 
       // Loading a document is the only automatic network operation. Changes
       // and saves use the already fetched versions and only update positions.
-      const shouldFetch = options.forceFetch === true
+      const shouldFetch = options.forceFresh === true
         || (options.fetch !== false && !hasDocumentState(editor))
       const session = ensureDocumentSession(editor.document)
 
       session.inProgress = true
-      await parseAndDecorate(editor, false, shouldFetch, options.forceFetch === true)
+      await parseAndDecorate(editor, false, shouldFetch, options.forceFresh === true)
     }
     else {
       statusBarItem.hide()

@@ -80,7 +80,7 @@ describe('package document listener', () => {
     await listener(editor)
     expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(1)
 
-    await listener(editor, { forceFetch: true })
+    await listener(editor, { forceFresh: true })
     expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(2)
   })
 
@@ -157,6 +157,28 @@ require github.com/stretchr/testify v1.10.0
     expect(getDocumentSession((editorA as any).document)?.fetchedDeps[0].item.key).toBe('package-a')
     expect(getDocumentSession((editorB as any).document)?.fetchedDeps[0].item.key).toBe('package-b')
     expect(mocks.decorate).toHaveBeenCalledTimes(2)
+  })
+
+  it('only forces the document that explicitly requests a retry', async () => {
+    const makeEditor = (uri: string, name: string) => ({
+      document: {
+        uri: { toString: () => uri },
+        fileName: 'package.json',
+        getText: () => `{ "dependencies": { "${name}": "1.0.0" } }`,
+      },
+    }) as never
+
+    await Promise.all([
+      listener(makeEditor('file:///workspace/a/package.json', 'package-a'), { forceFresh: true }),
+      listener(makeEditor('file:///workspace/b/package.json', 'package-b')),
+    ])
+
+    const calls = mocks.fetchPackageVersions.mock.calls.map(([items, forceFresh]) => ({
+      name: (items as Item[])[0].key,
+      forceFresh,
+    }))
+    expect(calls).toContainEqual({ name: 'package-a', forceFresh: true })
+    expect(calls).toContainEqual({ name: 'package-b', forceFresh: false })
   })
 
   it('removes a closed document session and ignores its late result', async () => {

@@ -12,7 +12,8 @@ const vscodeMocks = vi.hoisted(() => {
   }
 
   const handlers = new Map<string, unknown>()
-  return { TestRange, handlers }
+  const listener = vi.fn()
+  return { TestRange, handlers, listener }
 })
 
 vi.mock('vscode', () => ({
@@ -26,23 +27,20 @@ vi.mock('vscode', () => ({
 }))
 
 vi.mock('../src/core/listener', () => ({
-  default: vi.fn(),
-}))
-
-vi.mock('../src/api', () => ({
-  freshChecker: {
-    needFresh: false,
-    set: vi.fn(),
-  },
+  default: vscodeMocks.listener,
 }))
 
 const updateAll = vscodeMocks.handlers.get('depdetect.updateAll') as (
   editor: TextEditor,
   edit: TextEditorEdit,
 ) => void
+const retry = vscodeMocks.handlers.get('depdetect.retry') as (editor: TextEditor) => void
 
 describe('update all command', () => {
-  beforeEach(() => documentSessions.clear())
+  beforeEach(() => {
+    documentSessions.clear()
+    vscodeMocks.listener.mockClear()
+  })
 
   function setReplacements(editor: TextEditor, replacements: Array<{ item: string, start: number, end: number, plain?: boolean }>) {
     const session = createDocumentSession(editor.document)
@@ -182,5 +180,13 @@ describe('update all command', () => {
     updateAll(editorB, edit)
 
     expect(applied).toEqual([{ start: 10, end: 20, text: 'from-b' }])
+  })
+
+  it('passes forceFresh explicitly when retrying the active document', () => {
+    const editor = { document: {} } as TextEditor
+
+    retry(editor)
+
+    expect(vscodeMocks.listener).toHaveBeenCalledWith(editor, { forceFresh: true })
   })
 })
