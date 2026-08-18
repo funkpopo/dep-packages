@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
   },
   format: ['cjs'],
+  target: 'node22',
   shims: false,
   dts: false,
   external: [

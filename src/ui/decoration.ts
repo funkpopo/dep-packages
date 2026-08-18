@@ -1,4 +1,3 @@
-/* eslint-disable no-template-curly-in-string */
 /**
  * Helps to manage decorations for the TOML files.
  */
