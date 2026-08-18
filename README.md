@@ -13,8 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=funkpopo.depdetect"><img src="https://img.shields.io/visual-studio-marketplace/v/funkpopo.depdetect?label=VS%20Code%20Marketplace&logo=visual-studio-code" alt="Visual Studio Marketplace version"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=funkpopo.depdetect"><img src="https://img.shields.io/visual-studio-marketplace/i/funkpopo.depdetect?label=Installs" alt="Visual Studio Marketplace installs"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=funkpopo.depdetect"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Install-007ACC?logo=visual-studio-code&logoColor=white" alt="Install DepDetect from the Visual Studio Marketplace"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
 </p>
 
