@@ -7,6 +7,7 @@ export interface ReplaceItem {
   item: string
   start: number
   end: number
+  plain?: boolean
 }
 
 export const status = {
@@ -15,20 +16,21 @@ export const status = {
 }
 
 export const replaceVersion = commands.registerTextEditorCommand(
-  'packages.replaceVersion',
+  'depdetect.replaceVersion',
   (editor: TextEditor, edit: TextEditorEdit, info: ReplaceItem) => {
     if (editor && info && !status.inProgress) {
       const { fileName } = editor.document
-      if (fileName.toLocaleLowerCase().endsWith('package.json')) {
+      if (
+        fileName.toLocaleLowerCase().endsWith('package.json')
+        || fileName.toLocaleLowerCase().endsWith('requirements.txt')
+        || fileName.toLocaleLowerCase().endsWith('pyproject.toml')
+      ) {
         status.inProgress = true
         console.log('Replacing', info.item)
-        edit.replace(
-          new Range(
-            editor.document.positionAt(info.start + 1),
-            editor.document.positionAt(info.end - 1),
-          ),
-          info.item.substr(1, info.item.length - 2),
-        )
+        const start = info.plain ? info.start : info.start + 1
+        const end = info.plain ? info.end : info.end - 1
+        const value = info.plain ? info.item : info.item.substr(1, info.item.length - 2)
+        edit.replace(new Range(editor.document.positionAt(start), editor.document.positionAt(end)), value)
 
         status.inProgress = false
       }
@@ -37,16 +39,16 @@ export const replaceVersion = commands.registerTextEditorCommand(
 )
 
 export const reload = commands.registerTextEditorCommand(
-  'packages.retry',
+  'depdetect.retry',
   (editor: TextEditor) => {
     freshChecker.set(true)
     if (editor)
-      jsonListener(editor)
+      void jsonListener(editor, { forceFetch: true })
   },
 )
 
 export const updateAll = commands.registerTextEditorCommand(
-  'packages.updateAll',
+  'depdetect.updateAll',
   (editor: TextEditor, edit: TextEditorEdit) => {
     if (
       editor
@@ -62,7 +64,7 @@ export const updateAll = commands.registerTextEditorCommand(
         edit.replace(
           new Range(
             editor.document.positionAt(rItem.start),
-            editor.document.positionAt(rItem.end + 1),
+            editor.document.positionAt(rItem.end),
           ),
           rItem.item,
         )
@@ -77,4 +79,4 @@ export const updateAll = commands.registerTextEditorCommand(
   },
 )
 
-export default { replaceVersion }
+export default { replaceVersion, reload, updateAll }

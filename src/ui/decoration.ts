@@ -35,11 +35,14 @@ export default function decoration(
   errorDecorator: string,
   error?: string,
   info?: string,
+  markerColumn?: number,
 ): DecorationOptions {
   // Also handle json valued dependencies
 
   const start = item.start
-  const endofline = editor.document.lineAt(editor.document.positionAt(item.end)).range.end
+  const line = editor.document.lineAt(editor.document.positionAt(item.end)).range
+  const startofline = line.start
+  const endofline = line.end
   const end = item.end
   const version = item.value === 'latest' ? '*' : item.value
   const [satisfies, maxSatisfying] = checkVersion(version, versions)
@@ -70,47 +73,55 @@ export default function decoration(
   }
   if (!error && !info) {
     hoverMessage.appendMarkdown('#### Versions')
-    hoverMessage.appendMarkdown(` _( [Check NPM](https://www.npmjs.com/package/${item.key.replace(/"/g, '')}) )_`)
+    const registryName = item.registry === 'pypi' ? 'Check PyPI' : 'Check NPM'
+    const registryUrl = item.registry === 'pypi'
+      ? `https://pypi.org/project/${item.key}/`
+      : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
+    hoverMessage.appendMarkdown(` _( [${registryName}](${registryUrl}) )_`)
     hoverMessage.isTrusted = true
 
     if (versions.length > 0) {
       status.replaceItems.push({
-        item: `"${versions[0]}"`,
+        // Plain-text formats keep the operator outside the replacement range.
+        item: item.plainVersion ? versions[0] : `"${versions[0]}"`,
         start,
         end,
+        plain: item.plainVersion,
       })
     }
 
-    const prefix = prefixs.includes(version[0]) ? version[0] : ''
+    const prefix = item.plainVersion ? '' : (prefixs.includes(version[0]) ? version[0] : '')
     for (let i = 0; i < versions.length; i++) {
       const version = versions[i]
       const replaceData: ReplaceItem = {
-        item: `"${prefix}${version}"`,
+        item: item.plainVersion ? version : `"${prefix}${version}"`,
         start,
         end,
+        plain: item.plainVersion,
       }
       const isCurrent = version === maxSatisfying
       const encoded = encodeURI(JSON.stringify(replaceData))
       // const docs = (i === 0 || isCurrent) ? `[(docs)](https://docs.rs/crate/${item.key}/${version})` : ''
-      const command = `${isCurrent ? '**' : ''}[${version}](command:packages.replaceVersion?${encoded})${isCurrent ? '**' : ''}`
+      const command = `${isCurrent ? '**' : ''}[${version}](command:depdetect.replaceVersion?${encoded})${isCurrent ? '**' : ''}`
       hoverMessage.appendMarkdown('\n * ')
       hoverMessage.appendMarkdown(command)
     }
     if (version === `${prefix}?`) {
       const version = versions[0]
       const info: ReplaceItem = {
-        item: `"${prefix}${version}"`,
+        item: item.plainVersion ? version : `"${prefix}${version}"`,
         start,
         end,
+        plain: item.plainVersion,
       }
       // decoPositon = + version.length;
       editor.edit(edit => {
         edit.replace(
           new Range(
-            editor.document.positionAt(info.start + 1),
-            editor.document.positionAt(info.end - 1),
+            editor.document.positionAt(info.plain ? info.start : info.start + 1),
+            editor.document.positionAt(info.plain ? info.end : info.end - 1),
           ),
-          info.item.substr(1, info.item.length - 2),
+          info.plain ? info.item : info.item.substr(1, info.item.length - 2),
         )
       })
       editor.document.save()
@@ -131,7 +142,7 @@ export default function decoration(
 
   const deco = {
     range: new Range(
-      editor.document.positionAt(start),
+      startofline,
       endofline,
     ),
     hoverMessage,
@@ -139,8 +150,16 @@ export default function decoration(
       after: {},
     },
   }
-  if (version !== '?' && contentText.length > 0)
-    deco.renderOptions.after = { contentText }
+  if (version !== '?' && contentText.length > 0) {
+    const lineLength = editor.document.lineAt(startofline.line).text.length
+    const gap = Math.max(2, (markerColumn ?? lineLength + 2) - lineLength)
+    deco.renderOptions.after = {
+      contentText,
+      // `ch` follows the editor's monospace glyph width and keeps every
+      // status marker in the same visual column.
+      margin: `0 0 0 ${gap}ch`,
+    }
+  }
 
   return deco
 }

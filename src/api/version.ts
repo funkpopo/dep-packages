@@ -27,20 +27,48 @@ export async function version(name: string, cwd: string) {
   }
 }
 
-const registryCache = new Map<string, string>()
+const registryCache = new Map<string, Promise<string>>()
+const defaultRegistryCache = new Map<string, Promise<string | undefined>>()
+const scopedRegistryCache = new Map<string, Promise<string | undefined>>()
 
 export async function getNpmRegistry(pkg: string, cwd: string) {
   const key = `${pkg}+++${cwd}`
-  if (registryCache.has(key))
-    return registryCache.get(key)!
+  const cached = registryCache.get(key)
+  if (cached)
+    return cached
 
-  const cmd = 'npm config get registry'
-  const scopedCmd = `npm config get ${pkg}:registry`
-  const [defaultRegistry, scopedRegistry] = await Promise.all([
-    execCmd(cmd, cwd).catch(() => null),
-    execCmd(scopedCmd, cwd).catch(() => null),
-  ])
+  const request = (async () => {
+    const defaultRegistry = getDefaultRegistry(cwd)
+    const scope = pkg.startsWith('@') ? pkg.split('/')[0] : undefined
+    const scopedRegistry = scope ? getScopedRegistry(scope, cwd) : undefined
+    const [defaultValue, scopedValue] = await Promise.all([
+      defaultRegistry,
+      scopedRegistry,
+    ])
+    return scopedValue || defaultValue || NPM_REGISTRY
+  })()
 
-  registryCache.set(key, scopedRegistry || defaultRegistry || NPM_REGISTRY)
-  return scopedRegistry || defaultRegistry || NPM_REGISTRY
+  registryCache.set(key, request)
+  return request
+}
+
+function getDefaultRegistry(cwd: string) {
+  const cached = defaultRegistryCache.get(cwd)
+  if (cached)
+    return cached
+
+  const request = execCmd('npm config get registry', cwd).catch(() => undefined)
+  defaultRegistryCache.set(cwd, request)
+  return request
+}
+
+function getScopedRegistry(scope: string, cwd: string) {
+  const key = `${scope}+++${cwd}`
+  const cached = scopedRegistryCache.get(key)
+  if (cached)
+    return cached
+
+  const request = execCmd(`npm config get ${scope}:registry`, cwd).catch(() => undefined)
+  scopedRegistryCache.set(key, request)
+  return request
 }

@@ -3,10 +3,11 @@ import type Item from '../core/Item'
 import { ttl } from '../utils/ttl'
 import { dumpCache, loadCache } from './cache'
 import { version } from './version'
+import { pypiVersions } from './pypi'
 import { protocolDep } from './utils'
 
 export const freshChecker = {
-  needFresh: true,
+  needFresh: false,
   set(newVal: boolean) {
     this.needFresh = newVal
   },
@@ -25,55 +26,69 @@ cache.mset(init)
 // const cacheTTL = 30 * 60_000 // 30min
 
 let cacheChanged = false
+const pendingVersions = new Map<string, Promise<string[] | undefined>>()
 
 export interface PackageData {
   version: string[]
   info?: string
 }
 
-export async function getPackageData(item: Item, root: string): Promise<PackageData> {
+export async function getPackageData(
+  item: Item,
+  root: string,
+  forceFresh = freshChecker.needFresh,
+): Promise<PackageData> {
   const preTest = protocolDep(item)
   if (preTest)
     return preTest
 
   const name = item.key
+  const cacheKey = `${item.registry}:${name}`
 
-  const cacheData: string[] | undefined = cache.get(name)
-  if (cacheData) {
+  const cacheData: string[] | undefined = cache.get(cacheKey)
+  if (cacheData && !forceFresh) {
     console.log('vscode-packages: use cache', name)
-
-    if (freshChecker.needFresh) {
-      setTimeout(() => {
-        reGetVersion(name, root)
-      }, 10000)
-    }
-
     return { version: cacheData }
   }
 
-  const version = await reGetVersion(name, root)
+  const version = await reGetVersion(item, root)
   console.log('vscode-packages: fetch', name)
 
   return {
-    version,
+    version: version ?? cacheData ?? [],
   }
 }
 
-async function reGetVersion(name: string, root: string) {
-  try {
-    const data = await version(name, root)
+async function reGetVersion(item: Item, root: string): Promise<string[] | undefined> {
+  const key = `${root}+++${item.registry}+++${item.key}`
+  const pending = pendingVersions.get(key)
+  if (pending)
+    return pending
 
-    if (data) {
-      cache.set(name, data)
-      cacheChanged = true
-      return data
+  const request = (async () => {
+    try {
+      const data = item.registry === 'pypi'
+        ? await pypiVersions(item.key)
+        : await version(item.key, root)
+
+      if (data) {
+        cache.set(`${item.registry}:${item.key}`, data)
+        cacheChanged = true
+        return data
+      }
     }
-  }
-  catch (e) {
-    console.error(e)
-  }
+    catch (e) {
+      console.error(e)
+    }
 
-  return []
+    return undefined
+  })().finally(() => {
+    if (pendingVersions.get(key) === request)
+      pendingVersions.delete(key)
+  })
+
+  pendingVersions.set(key, request)
+  return request
 }
 
 export function saveCache() {

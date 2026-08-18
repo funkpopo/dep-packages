@@ -1,11 +1,11 @@
 {
   "publisher": "ririd",
-  "name": "packages",
-  "displayName": "packages",
-  "version": "0.8.5",
+  "name": "depdetect",
+  "displayName": "depdetect",
+  "version": "0.8.5-fix10",
   "private": true,
   "packageManager": "pnpm@8.12.0",
-  "description": "Helps JavaScript developers managing dependencies with package.json.",
+  "description": "Detects and manages dependencies versions in projects.",
   "author": "Riri <daydreamerriri@outlook.com>",
   "license": "MIT",
   "homepage": "https://github.com/Daydreamer-riri/vscode-ext-packages#readme",
@@ -36,43 +36,46 @@
   },
   "activationEvents": [
     "onLanguage:json",
-    "workspaceContains:package.json"
+    "onLanguage:toml",
+    "workspaceContains:package.json",
+    "workspaceContains:**/pyproject.toml",
+    "onStartupFinished"
   ],
   "contributes": {
     "commands": [
       {
-        "command": "packages.replaceVersion",
+        "command": "depdetect.replaceVersion",
         "title": "Do not call manually ! Replace Version of the provided dependency",
-        "category": "🎈 Packages"
+        "category": "🎈 DepDetect"
       },
       {
-        "command": "packages.updateAll",
+        "command": "depdetect.updateAll",
         "title": "Update All dependencies of the package.json",
-        "category": "🎈 Packages"
+        "category": "🎈 DepDetect"
       },
       {
-        "command": "packages.retry",
+        "command": "depdetect.retry",
         "title": "Retry to fetch package.json",
-        "category": "🎈 Packages"
+        "category": "🎈 DepDetect"
       }
     ],
     "configuration": {
       "type": "object",
-      "title": "Packages",
+      "title": "DepDetect",
       "properties": {
-        "packages.errorDecorator": {
+        "depdetect.errorDecorator": {
           "type": "string",
           "scope": "resource",
-          "default": "❗️❗️❗️",
+          "default": "❗️",
           "description": "The text to show when a dependency has errors."
         },
-        "packages.incompatibleDecorator": {
+        "depdetect.incompatibleDecorator": {
           "type": "string",
           "scope": "resource",
           "default": "❌ ${version}",
           "description": "The text template to show when a dependency is not semver compatible. ${version} will be replaced by the latest version info."
         },
-        "packages.compatibleDecorator": {
+        "depdetect.compatibleDecorator": {
           "type": "string",
           "scope": "resource",
           "default": "✅",
@@ -85,7 +88,7 @@
     "build": "tsup --external vscode",
     "dev": "pnpm run build --watch",
     "lint": "eslint .",
-    "vscode:prepublish": "nr build",
+    "vscode:prepublish": "npm run build",
     "publish": "vsce publish",
     "pack": "vsce package",
     "test": "vitest",

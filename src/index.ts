@@ -7,7 +7,11 @@ import { saveCache } from './api'
 export function activate(context: ExtensionContext) {
   registerListener(context)
   registerAutoCompletion(context)
-  context.subscriptions.push(Commands.replaceVersion)
+  context.subscriptions.push(
+    Commands.replaceVersion,
+    Commands.reload,
+    Commands.updateAll,
+  )
 }
 
 export function deactivate() {

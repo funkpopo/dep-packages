@@ -45,6 +45,9 @@ export function parseJson(text: string) {
       start,
       end,
       values: [],
+      registry: 'npm',
+      plainVersion: false,
+      replacePrefix: '',
     })
   })
 

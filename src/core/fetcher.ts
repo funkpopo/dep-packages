@@ -7,15 +7,17 @@ import { getRoot } from '../utils/resolve'
 import type Item from './Item'
 import type Dependency from './Dependency'
 import { getPackageDatas } from './worker'
+import { comparePythonVersions, isStablePythonVersion } from '../semver/python'
 
 export async function fetchPackageVersions(
   dependencies: Item[],
+  forceFresh = false,
 ): Promise<[Dependency[], Map<string, Dependency[]>]> {
-  statusBarItem.setText('👀 Fetching npm')
+  statusBarItem.setText('👀 Fetching registry')
 
   const responsesMap: Map<string, Dependency[]> = new Map()
 
-  const packageData = await fetchPackageData(dependencies)
+  const packageData = await fetchPackageData(dependencies, forceFresh)
 
   const responses = dependencies.map(
     (item, index) => {
@@ -25,12 +27,10 @@ export async function fetchPackageVersions(
           throw new Error('Get Package information failure')
 
         const versions = data.version
-          .reduce((total: string[], item) => {
-            if (!item.includes('-'))
-              total.push(item)
-            return total
-          }, [])
-          .sort(compareVersions)
+          .filter(version => item.registry === 'pypi'
+            ? isStablePythonVersion(version)
+            : !version.includes('-'))
+          .sort(item.registry === 'pypi' ? comparePythonVersions : compareVersions)
           .reverse()
         let i = 0
         const versionCompletionItems = new CompletionList(
@@ -74,10 +74,15 @@ export async function fetchPackageVersions(
 
 async function fetchPackageData(
   dependencies: Item[],
+  forceFresh: boolean,
 ): Promise<PackageData[]> {
   const root = getRoot()
 
-  const packageDatas = await getPackageDatas(dependencies, root)
+  const packageDatas = await getPackageDatas(
+    dependencies,
+    root,
+    forceFresh || freshChecker.needFresh,
+  )
 
   freshChecker.set(false)
 

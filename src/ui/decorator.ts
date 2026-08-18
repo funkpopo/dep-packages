@@ -20,6 +20,16 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
     return dep
   })
   const options: DecorationOptions[] = []
+  // Decorations are inserted after their own line. Reserve one common column
+  // for their marker so short and long requirement names do not make the
+  // check/cross icons visually zig-zag.
+  const markerColumn = Math.max(
+    32,
+    ...filtered.map(dependency => {
+      const position = editor.document.positionAt(dependency.item.end)
+      return editor.document.lineAt(position.line).text.length + 3
+    }),
+  )
 
   for (let i = filtered.length - 1; i > -1; i--) {
     const dependency = filtered[i]
@@ -33,6 +43,7 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
         pref.errorDecorator,
         dependency.error,
         dependency.info,
+        markerColumn,
       )
 
       if (decor)
@@ -58,9 +69,9 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
 
 function loadPref(editor: TextEditor) {
   const config = workspace.getConfiguration('', editor.document.uri)
-  const compatibleDecorator = config.get<string>('packages.compatibleDecorator') ?? ''
-  const incompatibleDecorator = config.get<string>('packages.incompatibleDecorator') ?? ''
-  const errorText = config.get<string>('packages.errorDecorator')
+  const compatibleDecorator = config.get<string>('depdetect.compatibleDecorator') ?? ''
+  const incompatibleDecorator = config.get<string>('depdetect.incompatibleDecorator') ?? ''
+  const errorText = config.get<string>('depdetect.errorDecorator')
   const errorDecorator = errorText ? `${errorText}` : ''
   return {
     compatibleDecorator,

@@ -1,31 +1,43 @@
 <p align="center">
-<img src="./res/logo.svg" height="100">
+<img src="./res/logo.png" height="100">
 </p>
-<h1 align="center">packages</h1>
+<h1 align="center">depdetect</h1>
 
 <p align="center">
-<a href="https://marketplace.visualstudio.com/items?itemName=ririd.packages" target="__blank"><img src="https://img.shields.io/visual-studio-marketplace/v/ririd.packages.svg?color=eee&amp;label=VS%20Code%20Marketplace&logo=visual-studio-code" alt="Visual Studio Marketplace Version" /></a>
+<a href="https://marketplace.visualstudio.com/items?itemName=ririd.depdetect" target="__blank"><img src="https://img.shields.io/visual-studio-marketplace/v/ririd.depdetect.svg?color=eee&amp;label=VS%20Code%20Marketplace&logo=visual-studio-code" alt="Visual Studio Marketplace Version" /></a>
 </p>
 
 <p align="center">
-This is packages, an extension for node dependencies. Aims helping developers to manage dependencies while using <i>package.json</i>.
+DepDetect is a VS Code extension for Node.js dependencies. It helps developers manage versions directly in <i>package.json</i>.
 </p>
 
 ## Features
 
-- Displays the latest version of the package next to it.
-- Shows all versions (clickable) on the tooltip of the package hovered.
+- Displays the latest version of npm and PyPI packages next to them.
+- Shows all versions (clickable) on the tooltip of a hovered dependency.
+- Supports `package.json`, Python `requirements.txt`, and `pyproject.toml` files.
+- Supports replacing one dependency or updating all displayed dependencies at once.
+
+## Refreshing version data
+
+Version metadata is fetched when a supported dependency file is first opened. Editing
+or saving the file only reparses the document and moves the existing
+decorations; it does not start another registry request. Opening a source
+control diff also avoids a registry request. Use `DepDetect: Retry to fetch
+dependency versions` when dependencies are added or you explicitly need the latest
+metadata.
 
 ## Preview
 
 ![preview](./screenshots/preview.gif)
 
 ## Known Issues
-Any minor issues or glitches you encounter will automatically be resolved when you save your work.
+Newly added dependencies are shown after the next explicit retry because
+editing and saving do not automatically query the registry.
 
 ## Thanks
 
-`packages` is inspired by [crates](https://github.com/serayuzgur/crates), which is an extension for managing Rust dependencies.
+`depdetect` is inspired by [crates](https://github.com/serayuzgur/crates), which is an extension for managing Rust dependencies.
 
 ## License
 
