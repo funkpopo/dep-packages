@@ -73,10 +73,14 @@ export default function decoration(
   }
   if (!error && !info) {
     hoverMessage.appendMarkdown('#### Versions')
-    const registryName = item.registry === 'pypi' ? 'Check PyPI' : 'Check NPM'
+    const registryName = item.registry === 'pypi'
+      ? 'Check PyPI'
+      : item.registry === 'go' ? 'Check pkg.go.dev' : 'Check NPM'
     const registryUrl = item.registry === 'pypi'
       ? `https://pypi.org/project/${item.key}/`
-      : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
+      : item.registry === 'go'
+        ? `https://pkg.go.dev/${item.key}`
+        : `https://www.npmjs.com/package/${item.key.replace(/"/g, '')}`
     hoverMessage.appendMarkdown(` _( [${registryName}](${registryUrl}) )_`)
     hoverMessage.isTrusted = true
 

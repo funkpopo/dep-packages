@@ -2,7 +2,7 @@
   "publisher": "ririd",
   "name": "depdetect",
   "displayName": "depdetect",
-  "version": "0.8.5-fix10",
+  "version": "0.8.5-fix11",
   "private": true,
   "packageManager": "pnpm@8.12.0",
   "description": "Detects and manages dependencies versions in projects.",
@@ -19,6 +19,8 @@
   "keywords": [
     "node",
     "npm",
+    "go",
+    "golang",
     "javascript",
     "json"
   ],
@@ -37,8 +39,10 @@
   "activationEvents": [
     "onLanguage:json",
     "onLanguage:toml",
+    "onLanguage:go.mod",
     "workspaceContains:package.json",
     "workspaceContains:**/pyproject.toml",
+    "workspaceContains:**/go.mod",
     "onStartupFinished"
   ],
   "contributes": {
@@ -50,12 +54,12 @@
       },
       {
         "command": "depdetect.updateAll",
-        "title": "Update All dependencies of the package.json",
+        "title": "Update All dependencies of the active dependency file",
         "category": "🎈 DepDetect"
       },
       {
         "command": "depdetect.retry",
-        "title": "Retry to fetch package.json",
+        "title": "Retry to fetch the active dependency file",
         "category": "🎈 DepDetect"
       }
     ],

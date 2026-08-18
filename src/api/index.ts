@@ -4,6 +4,7 @@ import { ttl } from '../utils/ttl'
 import { dumpCache, loadCache } from './cache'
 import { version } from './version'
 import { pypiVersions } from './pypi'
+import { goModuleVersions } from './gomod'
 import { protocolDep } from './utils'
 
 export const freshChecker = {
@@ -69,7 +70,9 @@ async function reGetVersion(item: Item, root: string): Promise<string[] | undefi
     try {
       const data = item.registry === 'pypi'
         ? await pypiVersions(item.key)
-        : await version(item.key, root)
+        : item.registry === 'go'
+          ? await goModuleVersions(item.key)
+          : await version(item.key, root)
 
       if (data) {
         cache.set(`${item.registry}:${item.key}`, data)

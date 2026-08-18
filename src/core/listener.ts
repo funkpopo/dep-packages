@@ -6,6 +6,7 @@ import decorate, { decorationHandle } from '../ui/decorator'
 import { parseJson } from '../json/parse'
 import { parseRequirements } from '../requirements/parse'
 import { parsePyProject } from '../pyproject/parse'
+import { parseGoMod } from '../gomod/parse'
 import { status } from '../commands/commands'
 import { statusBarItem } from '../ui/indicators'
 import type Dependency from './Dependency'
@@ -17,6 +18,8 @@ function parseDeps(document: TextDocument): Item[] {
     return parseRequirements(document.getText())
   if (isPyProject(document))
     return parsePyProject(document.getText())
+  if (isGoMod(document))
+    return parseGoMod(document.getText())
   return parseJson(document.getText())
 }
 
@@ -142,7 +145,6 @@ export async function parseAndDecorate(
   fetchDeps = true,
   forceFresh = false,
 ) {
-  const text = editor.document.getText()
   // const config = workspace.getConfiguration('', editor.document.uri)
 
   try {
@@ -192,8 +194,12 @@ function isPyProject(document: TextDocument) {
   return document.fileName.toLocaleLowerCase().endsWith('pyproject.toml')
 }
 
+function isGoMod(document: TextDocument) {
+  return document.fileName.toLocaleLowerCase().endsWith('go.mod')
+}
+
 function isDependencyFile(document: TextDocument) {
-  return isPackageJson(document) || isRequirements(document) || isPyProject(document)
+  return isPackageJson(document) || isRequirements(document) || isPyProject(document) || isGoMod(document)
 }
 
 function isDiffEditor(editor: TextEditor | undefined) {

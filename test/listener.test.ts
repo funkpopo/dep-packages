@@ -71,4 +71,26 @@ describe('package document listener', () => {
     await listener(editor, { forceFetch: true })
     expect(mocks.fetchPackageVersions).toHaveBeenCalledTimes(2)
   })
+
+  it('recognizes go.mod documents and fetches Go module versions', async () => {
+    const document = {
+      uri: { toString: () => 'file:///workspace/go.mod' },
+      fileName: 'go.mod',
+      getText: () => `module example.com/project
+
+require github.com/stretchr/testify v1.10.0
+`,
+    }
+
+    await listener({ document } as never)
+
+    const items = mocks.fetchPackageVersions.mock.lastCall?.[0] as Item[]
+    expect(items).toHaveLength(1)
+    expect(items[0]).toMatchObject({
+      key: 'github.com/stretchr/testify',
+      value: 'v1.10.0',
+      registry: 'go',
+      plainVersion: true,
+    })
+  })
 })

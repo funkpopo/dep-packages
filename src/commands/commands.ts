@@ -15,16 +15,20 @@ export const status = {
   replaceItems: [] as ReplaceItem[],
 }
 
+function isDependencyFile(fileName: string) {
+  const normalized = fileName.toLocaleLowerCase()
+  return normalized.endsWith('package.json')
+    || normalized.endsWith('requirements.txt')
+    || normalized.endsWith('pyproject.toml')
+    || normalized.endsWith('go.mod')
+}
+
 export const replaceVersion = commands.registerTextEditorCommand(
   'depdetect.replaceVersion',
   (editor: TextEditor, edit: TextEditorEdit, info: ReplaceItem) => {
     if (editor && info && !status.inProgress) {
       const { fileName } = editor.document
-      if (
-        fileName.toLocaleLowerCase().endsWith('package.json')
-        || fileName.toLocaleLowerCase().endsWith('requirements.txt')
-        || fileName.toLocaleLowerCase().endsWith('pyproject.toml')
-      ) {
+      if (isDependencyFile(fileName)) {
         status.inProgress = true
         console.log('Replacing', info.item)
         const start = info.plain ? info.start : info.start + 1
@@ -55,7 +59,7 @@ export const updateAll = commands.registerTextEditorCommand(
       && !status.inProgress
       && status.replaceItems
       && status.replaceItems.length > 0
-      && editor.document.fileName.toLocaleLowerCase().endsWith('package.json')
+      && isDependencyFile(editor.document.fileName)
     ) {
       status.inProgress = true
       console.log('Replacing All')
