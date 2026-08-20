@@ -21,7 +21,7 @@ import {
   versionSatisfiesItem,
 } from '../core/versions'
 
-export function latestVersion() {
+export function createDecorationType() {
   return window.createTextEditorDecorationType({
     after: {
       margin: '2em',

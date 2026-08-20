@@ -1,17 +1,26 @@
-import type { DecorationOptions, TextEditor, TextEditorDecorationType } from 'vscode'
+import type { DecorationOptions, ExtensionContext, TextEditor, TextEditorDecorationType } from 'vscode'
 import { workspace } from 'vscode'
 import type Dependency from '../core/Dependency'
-import decoration, { latestVersion } from './decoration'
+import decoration, { createDecorationType } from './decoration'
 import { statusBarItem } from './indicators'
 
-export let decorationHandle: TextEditorDecorationType
-const documentDecorationHandles = new Map<string, TextEditorDecorationType>()
+let decorationHandle: TextEditorDecorationType | undefined
 
-export function disposeDocumentDecoration(editorOrDocument: TextEditor | TextEditor['document']) {
-  const document = 'document' in editorOrDocument ? editorOrDocument.document : editorOrDocument
-  const key = document.uri.toString()
-  documentDecorationHandles.get(key)?.dispose()
-  documentDecorationHandles.delete(key)
+export function initializeDecoration(context: ExtensionContext) {
+  if (!decorationHandle) {
+    decorationHandle = createDecorationType()
+    context.subscriptions.push(decorationHandle)
+  }
+}
+
+function getDecorationHandle() {
+  if (!decorationHandle)
+    throw new Error('DepDetect decorations have not been initialized')
+  return decorationHandle
+}
+
+export function clearDocumentDecorations(editor: TextEditor) {
+  editor.setDecorations(getDecorationHandle(), [])
 }
 
 export default function decorate(editor: TextEditor, dependencies: Dependency[]): void {
@@ -62,11 +71,10 @@ export default function decorate(editor: TextEditor, dependencies: Dependency[])
     }
   }
 
-  disposeDocumentDecoration(editor)
-
-  decorationHandle = latestVersion()
-  documentDecorationHandles.set(editor.document.uri.toString(), decorationHandle)
-  editor.setDecorations(decorationHandle, options)
+  // VS Code replaces the decorations associated with this type on each call.
+  // Reusing one type avoids removing and recreating the UI resource on every
+  // document refresh, which can otherwise make markers flicker while typing.
+  editor.setDecorations(getDecorationHandle(), options)
 
   // if (errors.length)
   //   statusBarItem.setText('❗️ Completed with errors')

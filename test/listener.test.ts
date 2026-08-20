@@ -37,7 +37,7 @@ vi.mock('../src/core/fetcher', () => ({
 
 vi.mock('../src/ui/decorator', () => ({
   default: mocks.decorate,
-  disposeDocumentDecoration: vi.fn(),
+  clearDocumentDecorations: vi.fn(),
 }))
 
 vi.mock('../src/ui/indicators', () => ({

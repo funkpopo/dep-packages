@@ -1,7 +1,7 @@
 import type { ExtensionContext, Position, TextDocument, TextEditor } from 'vscode'
 import { Range, window, workspace } from 'vscode'
 
-import decorate, { disposeDocumentDecoration } from '../ui/decorator'
+import decorate, { clearDocumentDecorations } from '../ui/decorator'
 import { parseJson } from '../json/parse'
 import { parseRequirements } from '../requirements/parse'
 import { parsePyProject } from '../pyproject/parse'
@@ -205,7 +205,7 @@ export async function parseAndDecorate(
   catch (e) {
     console.error(e)
     statusBarItem.setText('Dependency file is not valid!')
-    disposeDocumentDecoration(editor)
+    clearDocumentDecorations(editor)
   }
   finally {
     const session = getDocumentSession(editor.document)
@@ -322,7 +322,6 @@ export function registerListener(context: ExtensionContext) {
     }),
     workspace.onDidCloseTextDocument(document => {
       removeDocumentSession(document)
-      disposeDocumentDecoration(document)
     }),
     // When activation is triggered while VS Code is restoring the workbench,
     // activeTextEditor can briefly be undefined and no active-editor event is
