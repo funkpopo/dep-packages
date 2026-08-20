@@ -116,27 +116,6 @@ export default function decoration(
       if (i + 1 === HOVER_RECENT_VERSION_COUNT && hoverVersions.length > HOVER_RECENT_VERSION_COUNT)
         hoverMessage.appendMarkdown('\n\n _Scroll for more retained stable versions._')
     }
-    if (version === `${prefix}?`) {
-      const version = versions[0]
-      const info: ReplaceItem = {
-        item: item.plainVersion ? version : `"${prefix}${version}"`,
-        start,
-        end,
-        plain: item.plainVersion,
-      }
-      // decoPositon = + version.length;
-      editor.edit(edit => {
-        edit.replace(
-          new Range(
-            editor.document.positionAt(info.plain ? info.start : info.start + 1),
-            editor.document.positionAt(info.plain ? info.end : info.end - 1),
-          ),
-          info.plain ? info.item : info.item.substr(1, info.item.length - 2),
-        )
-      })
-      editor.document.save()
-    }
-
     let latestText = compatibleDecorator.replace('${version}', versions[0])
     if (!validRange(version)) {
       latestText = errorDecorator.replace('${version}', versions[0])
