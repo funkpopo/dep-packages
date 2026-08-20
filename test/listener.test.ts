@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
     hide: vi.fn(),
     setText: vi.fn(),
   },
+  workspaceFolder: vi.fn(),
   closeDocument: undefined as undefined | ((document: unknown) => void),
 }))
 
@@ -22,6 +23,7 @@ vi.mock('vscode', () => ({
     onDidChangeVisibleTextEditors: vi.fn(() => ({ dispose: vi.fn() })),
   },
   workspace: {
+    getWorkspaceFolder: mocks.workspaceFolder,
     onDidChangeTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
     onDidSaveTextDocument: vi.fn(() => ({ dispose: vi.fn() })),
     onDidCloseTextDocument: vi.fn((handler: (document: unknown) => void) => {
@@ -57,6 +59,8 @@ describe('package document listener', () => {
     documentSessions.clear()
     mocks.fetchPackageVersions.mockClear()
     mocks.decorate.mockClear()
+    mocks.workspaceFolder.mockReset()
+    mocks.workspaceFolder.mockReturnValue({ uri: { fsPath: 'C:\\workspace' } })
   })
 
   it('does not fetch again when only the version changes or the document reopens', async () => {
@@ -220,12 +224,13 @@ require github.com/stretchr/testify v1.10.0
       listener(makeEditor('file:///workspace/b/package.json', 'package-b')),
     ])
 
-    const calls = mocks.fetchPackageVersions.mock.calls.map(([items, forceFresh]) => ({
+    const calls = mocks.fetchPackageVersions.mock.calls.map(([items, root, forceFresh]) => ({
       name: (items as Item[])[0].key,
+      root,
       forceFresh,
     }))
-    expect(calls).toContainEqual({ name: 'package-a', forceFresh: true })
-    expect(calls).toContainEqual({ name: 'package-b', forceFresh: false })
+    expect(calls).toContainEqual({ name: 'package-a', root: 'C:\\workspace', forceFresh: true })
+    expect(calls).toContainEqual({ name: 'package-b', root: 'C:\\workspace', forceFresh: false })
   })
 
   it('removes a closed document session and ignores its late result', async () => {
@@ -250,5 +255,51 @@ require github.com/stretchr/testify v1.10.0
 
     expect(documentSessions.has(document.uri.toString())).toBe(false)
     expect(mocks.decorate).not.toHaveBeenCalled()
+  })
+
+  it('passes each target document workspace root to its own request', async () => {
+    mocks.workspaceFolder.mockImplementation((uri: { toString: () => string }) => {
+      const value = uri.toString()
+      if (value.includes('/alpha/'))
+        return { uri: { fsPath: 'C:\\projects\\alpha' } }
+      if (value.includes('/beta/'))
+        return { uri: { fsPath: 'C:\\projects\\beta' } }
+      return undefined
+    })
+
+    const makeEditor = (project: string, name: string) => ({
+      document: {
+        uri: {
+          fsPath: `C:\\projects\\${project}\\package.json`,
+          toString: () => `file:///projects/${project}/package.json`,
+        },
+        fileName: `C:\\projects\\${project}\\package.json`,
+        getText: () => `{ "dependencies": { "${name}": "1.0.0" } }`,
+      },
+    }) as never
+
+    await listener(makeEditor('alpha', 'alpha-package'))
+    await listener(makeEditor('beta', 'beta-package'))
+
+    expect(mocks.fetchPackageVersions.mock.calls.map(([, root]) => root)).toEqual([
+      'C:\\projects\\alpha',
+      'C:\\projects\\beta',
+    ])
+  })
+
+  it('falls back to the dependency document directory without a workspace', async () => {
+    mocks.workspaceFolder.mockReturnValue(undefined)
+    const document = {
+      uri: {
+        fsPath: 'C:\\standalone\\package.json',
+        toString: () => 'file:///standalone/package.json',
+      },
+      fileName: 'C:\\standalone\\package.json',
+      getText: () => `{ "dependencies": { "standalone-package": "1.0.0" } }`,
+    }
+
+    await listener({ document } as never)
+
+    expect(mocks.fetchPackageVersions.mock.lastCall?.[1]).toBe('C:\\standalone')
   })
 })

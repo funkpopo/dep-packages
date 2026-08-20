@@ -11,6 +11,7 @@ import { statusBarItem } from '../ui/indicators'
 import type Dependency from './Dependency'
 import type Item from './Item'
 import { fetchPackageVersions } from './fetcher'
+import { getRoot } from '../utils/resolve'
 import {
   documentKey,
   documentSessions,
@@ -94,6 +95,7 @@ function getFetchedMap(fetched: Dependency[]) {
 function fetchDocumentState(
   editor: TextEditor,
   items: Item[],
+  root: string,
   forceFresh: boolean,
 ): Promise<Dependency[]> {
   const key = documentKey(editor.document)
@@ -110,11 +112,11 @@ function fetchDocumentState(
     return pending.promise.then(() => {
       if (documentSessions.get(key) !== session)
         return []
-      return fetchDocumentState(editor, items, forceFresh)
+      return fetchDocumentState(editor, items, root, forceFresh)
     })
   }
 
-  const request: Promise<Dependency[]> = fetchPackageVersions(items, forceFresh)
+  const request: Promise<Dependency[]> = fetchPackageVersions(items, root, forceFresh)
     .then(([fetched]) => {
       // Closing a document invalidates its session. Registry/cache work may
       // finish, but must never recreate or mutate the closed editor state.
@@ -160,6 +162,7 @@ export async function parseAndDecorate(
   _wasSaved = false,
   fetchDeps = true,
   forceFresh = false,
+  root = getRoot(editor.document),
 ) {
   // const config = workspace.getConfiguration('', editor.document.uri)
 
@@ -172,7 +175,7 @@ export async function parseAndDecorate(
     let fetched: Dependency[] | undefined
 
     if (fetchDeps) {
-      fetched = await fetchDocumentState(editor, parsedDependencies, forceFresh)
+      fetched = await fetchDocumentState(editor, parsedDependencies, root, forceFresh)
     }
     else {
       fetched = session.fetchedDeps
@@ -275,9 +278,12 @@ export default async function listener(
       const shouldFetch = options.forceFresh === true
         || (options.fetch !== false && (!hasDocumentState(editor) || hasDependencyIdentityChanged(editor)))
       const session = ensureDocumentSession(editor.document)
+      // Resolve this before starting asynchronous registry work. The active
+      // editor may change while the request is in flight.
+      const root = getRoot(editor.document)
 
       session.inProgress = true
-      await parseAndDecorate(editor, false, shouldFetch, options.forceFresh === true)
+      await parseAndDecorate(editor, false, shouldFetch, options.forceFresh === true, root)
     }
     else {
       statusBarItem.hide()

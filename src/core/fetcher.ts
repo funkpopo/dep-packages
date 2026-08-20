@@ -2,7 +2,6 @@ import { CompletionItem, CompletionItemKind, CompletionList } from 'vscode'
 import { sortText } from '../providers/autoCompletion'
 import { statusBarItem } from '../ui/indicators'
 import type { PackageData } from '../api'
-import { getRoot } from '../utils/resolve'
 import type Item from './Item'
 import type Dependency from './Dependency'
 import { getPackageDatas } from './worker'
@@ -10,13 +9,14 @@ import { normalizeVersions, retainRelevantVersions } from './versions'
 
 export async function fetchPackageVersions(
   dependencies: Item[],
+  root: string,
   forceFresh = false,
 ): Promise<[Dependency[], Map<string, Dependency[]>]> {
   statusBarItem.setText('👀 Fetching registry')
 
   const responsesMap: Map<string, Dependency[]> = new Map()
 
-  const packageData = await fetchPackageData(dependencies, forceFresh)
+  const packageData = await fetchPackageData(dependencies, root, forceFresh)
 
   const responses = dependencies.map(
     (item, index) => {
@@ -68,10 +68,9 @@ export async function fetchPackageVersions(
 
 async function fetchPackageData(
   dependencies: Item[],
+  root: string,
   forceFresh: boolean,
 ): Promise<PackageData[]> {
-  const root = getRoot()
-
   const packageDatas = await getPackageDatas(
     dependencies,
     root,
